@@ -141,6 +141,11 @@ impl Bundle {
     }
 
     /// Reads a bundle from disk, skipping files ignored by `.gitignore`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LoadError::NotADirectory`] if `root` is not a directory, and
+    /// [`LoadError::Io`] if a file cannot be read or is not valid UTF-8.
     pub fn load(root: impl AsRef<Path>) -> Result<Self, LoadError> {
         Self::load_path(root.as_ref())
     }

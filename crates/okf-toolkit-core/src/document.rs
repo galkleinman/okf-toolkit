@@ -158,7 +158,7 @@ impl Document {
             }),
             Ok(node) => match node.value {
                 Value::Mapping(entries) => FrontmatterState::Parsed(Frontmatter {
-                    entries: shift_mapping(entries),
+                    entries: shift_mapping(&entries),
                     span: block_span,
                 }),
                 _ => FrontmatterState::Malformed(FrontmatterError::NotAMapping {
@@ -178,7 +178,7 @@ impl Document {
 }
 
 /// Re-anchors frontmatter spans onto the file, past the opening `---`.
-fn shift_mapping(mapping: Mapping) -> Mapping {
+fn shift_mapping(mapping: &Mapping) -> Mapping {
     Mapping::from_entries(
         mapping
             .entries()
@@ -191,7 +191,7 @@ fn shift_mapping(mapping: Mapping) -> Mapping {
 fn shift_node(node: &Node) -> Node {
     let value = match &node.value {
         Value::Sequence(items) => Value::Sequence(items.iter().map(shift_node).collect()),
-        Value::Mapping(map) => Value::Mapping(shift_mapping(map.clone())),
+        Value::Mapping(map) => Value::Mapping(shift_mapping(map)),
         other => other.clone(),
     };
     Node::new(value, node.span.offset_lines(1))
@@ -214,16 +214,15 @@ fn strip_opening_delimiter(source: &str) -> Option<&str> {
 /// first line number.
 fn split_at_closing_delimiter(after_open: &str) -> Option<(&str, &str, usize)> {
     let mut offset = 0;
-    let mut line_number = 2;
 
-    for line in after_open.split_inclusive('\n') {
+    // The opening `---` is line 1, so the first YAML line is line 2.
+    for (index, line) in after_open.split_inclusive('\n').enumerate() {
         if line.trim_end_matches(['\r', '\n']) == DELIMITER {
             let yaml = &after_open[..offset];
             let body = &after_open[offset + line.len()..];
-            return Some((yaml, body, line_number + 1));
+            return Some((yaml, body, index + 3));
         }
         offset += line.len();
-        line_number += 1;
     }
     None
 }

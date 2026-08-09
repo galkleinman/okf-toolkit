@@ -188,10 +188,10 @@ impl Frontmatter {
     /// Every actor string in the concept, with the span to blame for each.
     pub fn actors(&self) -> Vec<(&str, Span)> {
         let mut actors = Vec::new();
-        if let Some(generated) = self.generated() {
-            if let Some(by) = generated.by {
-                actors.push((by, generated.span));
-            }
+        if let Some(generated) = self.generated()
+            && let Some(by) = generated.by
+        {
+            actors.push((by, generated.span));
         }
         for verification in self.verified() {
             if let Some(by) = verification.by {

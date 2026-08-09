@@ -25,7 +25,7 @@ impl Date {
         let month: u8 = parse_two_digits(&text[5..7])?;
         let day: u8 = parse_two_digits(&text[8..10])?;
 
-        (month >= 1 && month <= 12 && day >= 1 && day <= days_in_month(year, month))
+        ((1..=12).contains(&month) && (1..=days_in_month(year, month)).contains(&day))
             .then_some(Self { year, month, day })
     }
 
@@ -49,6 +49,11 @@ impl Date {
 
     /// Howard Hinnant's `civil_from_days`, shifted to a March-based year so
     /// the leap day lands at the end and month lengths follow a fixed pattern.
+    ///
+    /// The algorithm bounds `day` to 1..=31 and `month` to 1..=12, and callers
+    /// only reach year values well inside `i32`, so the narrowing casts below
+    /// cannot lose information.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn from_days_since_epoch(days: i64) -> Self {
         let z = days + 719_468;
         let era = z.div_euclid(146_097);
@@ -138,8 +143,8 @@ impl Timestamp {
         // An offset can push the instant into the previous or next UTC day, so
         // the date is normalised alongside the time rather than kept as written.
         let total = hour * 3600 + minute * 60 + second - offset_seconds;
-        let day_shift = i64::from(total).div_euclid(86_400);
-        let seconds = i64::from(total).rem_euclid(86_400) as i32;
+        let day_shift = i64::from(total.div_euclid(86_400));
+        let seconds = total.rem_euclid(86_400);
         let date = Date::from_days_since_epoch(date.to_days_since_epoch() + day_shift);
         Some(Self { date, seconds })
     }

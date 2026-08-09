@@ -68,7 +68,13 @@ impl Link {
     /// that climb out of the bundle root.
     pub fn resolve(&self, from: &ConceptId) -> Option<ConceptId> {
         let path = self.target.split(['#', '?']).next()?;
-        if path.is_empty() || !path.ends_with(".md") {
+        // Deliberately case-sensitive: `.md` is the extension the spec uses, and
+        // a link to `README.MD` should not silently resolve to a concept. An
+        // empty target has no extension, so it is rejected here too.
+        if std::path::Path::new(path)
+            .extension()
+            .is_none_or(|extension| extension != "md")
+        {
             return None;
         }
 

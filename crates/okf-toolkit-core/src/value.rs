@@ -161,6 +161,11 @@ impl Node {
     /// An empty document yields [`Value::Null`], matching YAML's own reading of
     /// a blank stream and letting callers treat "no frontmatter keys" as an
     /// empty mapping rather than an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseError`] with the position of the first syntax error if
+    /// `source` is not valid YAML.
     pub fn parse(source: &str) -> Result<Self, ParseError> {
         let documents = MarkedYamlOwned::load_from_str(source).map_err(|error| ParseError {
             message: error.to_string(),
@@ -191,11 +196,10 @@ fn convert(node: &MarkedYamlOwned) -> Node {
         // OKF gives tags no meaning, so a tagged node is its inner value.
         YamlDataOwned::Tagged(_, inner) => convert(inner).value,
         YamlDataOwned::Representation(text, ..) => Value::String(text.clone()),
-        // A scalar the loader could not build (`!!binary`, for one). Treated as
-        // absent rather than fatal: §11 only requires the block to *parse*.
-        YamlDataOwned::BadValue => Value::Null,
-        // Anchors are resolved into their target during loading.
-        YamlDataOwned::Alias(_) => Value::Null,
+        // `BadValue` is a scalar the loader could not build (`!!binary`, for
+        // one), treated as absent rather than fatal since §11 only requires the
+        // block to *parse*. Aliases are resolved into their target on load.
+        YamlDataOwned::BadValue | YamlDataOwned::Alias(_) => Value::Null,
     };
     Node::new(value, span)
 }

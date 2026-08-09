@@ -15,20 +15,22 @@ pub enum Actor<'a> {
 
 impl<'a> Actor<'a> {
     pub fn parse(text: &'a str) -> Self {
-        if let Some(id) = text.strip_prefix("human:") {
-            if !id.is_empty() {
-                return Self::Human(id);
-            }
+        if let Some(id) = text.strip_prefix("human:")
+            && !id.is_empty()
+        {
+            return Self::Human(id);
         }
-        if let Some(id) = text.strip_prefix("process:") {
-            if !id.is_empty() {
-                return Self::Process(id);
-            }
+        if let Some(id) = text.strip_prefix("process:")
+            && !id.is_empty()
+        {
+            return Self::Process(id);
         }
-        if let Some((producer, version)) = text.split_once('/') {
-            if !producer.is_empty() && !version.is_empty() && !version.contains('/') {
-                return Self::Agent { producer, version };
-            }
+        if let Some((producer, version)) = text.split_once('/')
+            && !producer.is_empty()
+            && !version.is_empty()
+            && !version.contains('/')
+        {
+            return Self::Agent { producer, version };
         }
         Self::Unrecognized(text)
     }

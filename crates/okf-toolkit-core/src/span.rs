@@ -42,6 +42,7 @@ impl Span {
     /// Frontmatter is parsed as a standalone YAML document, so its spans are
     /// relative to the start of the block rather than the file. Shifting by the
     /// number of lines the opening `---` occupies maps them back onto the file.
+    #[must_use]
     pub fn offset_lines(self, lines: usize) -> Self {
         Self {
             start: Position::new(self.start.line + lines, self.start.column),

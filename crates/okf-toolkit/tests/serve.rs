@@ -174,6 +174,7 @@ fn interrupt(child: &std::process::Child) {
 }
 
 /// Speaks just enough HTTP to fetch one page, so the test needs no client crate.
+#[cfg(unix)]
 fn minimal_http_get(address: &str, path: &str) -> String {
     use std::io::Read as _;
     let mut stream = std::net::TcpStream::connect(address).expect("connects");

@@ -49,6 +49,8 @@ jobs:
   coverage:
     name: Coverage (100% gate)
     runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -63,11 +65,14 @@ jobs:
           cargo llvm-cov --workspace --all-features --locked
           --lcov --output-path lcov.info
           --fail-under-lines 100
+      # Reporting, not the gate: the step above is what enforces 100%. Skipped
+      # when no token is configured so a fork or a fresh clone still goes green.
       - uses: codecov/codecov-action@v7
+        if: env.CODECOV_TOKEN != ''
         with:
           files: lcov.info
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
 
   docs:
     name: Docs

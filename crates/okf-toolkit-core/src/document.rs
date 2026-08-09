@@ -119,7 +119,10 @@ impl Document {
         let Some(after_open) = strip_opening_delimiter(source) else {
             return Self {
                 frontmatter: FrontmatterState::Absent,
-                body: Body { text: source.to_owned(), start_line: 1 },
+                body: Body {
+                    text: source.to_owned(),
+                    start_line: 1,
+                },
             };
         };
 
@@ -128,13 +131,18 @@ impl Document {
                 frontmatter: FrontmatterState::Malformed(FrontmatterError::Unterminated {
                     span: Span::at(Position::new(1, 1)),
                 }),
-                body: Body { text: String::new(), start_line: 1 },
+                body: Body {
+                    text: String::new(),
+                    start_line: 1,
+                },
             };
         };
 
         let yaml_line_count = yaml.lines().count();
-        let block_span =
-            Span::new(Position::new(1, 1), Position::new(yaml_line_count + 2, DELIMITER.len() + 1));
+        let block_span = Span::new(
+            Position::new(1, 1),
+            Position::new(yaml_line_count + 2, DELIMITER.len() + 1),
+        );
 
         let frontmatter = match Node::parse(yaml) {
             Err(ParseError { message, position }) => {
@@ -159,7 +167,13 @@ impl Document {
             },
         };
 
-        Self { frontmatter, body: Body { text: body.to_owned(), start_line: body_start_line } }
+        Self {
+            frontmatter,
+            body: Body {
+                text: body.to_owned(),
+                start_line: body_start_line,
+            },
+        }
     }
 }
 
@@ -185,7 +199,10 @@ fn shift_node(node: &Node) -> Node {
 
 fn strip_opening_delimiter(source: &str) -> Option<&str> {
     let rest = source.strip_prefix(DELIMITER)?;
-    match rest.strip_prefix("\r\n").or_else(|| rest.strip_prefix('\n')) {
+    match rest
+        .strip_prefix("\r\n")
+        .or_else(|| rest.strip_prefix('\n'))
+    {
         Some(after) => Some(after),
         // A file consisting of exactly `---` opens a block that never closes.
         None if rest.is_empty() => Some(rest),
@@ -219,7 +236,10 @@ mod tests {
     fn splits_frontmatter_from_body() {
         let doc = Document::parse("---\ntype: Metric\n---\n# Heading\n\nText.\n");
         let frontmatter = doc.frontmatter.parsed().expect("parsed");
-        assert_eq!(frontmatter.entries.get("type").and_then(Node::as_str), Some("Metric"));
+        assert_eq!(
+            frontmatter.entries.get("type").and_then(Node::as_str),
+            Some("Metric")
+        );
         assert_eq!(doc.body.text, "# Heading\n\nText.\n");
         assert_eq!(doc.body.start_line, 4);
         assert!(doc.frontmatter.error().is_none());
@@ -230,8 +250,26 @@ mod tests {
     fn frontmatter_spans_point_at_file_lines() {
         let doc = Document::parse("---\ntype: Metric\ntitle: T\n---\nbody\n");
         let frontmatter = doc.frontmatter.parsed().expect("parsed");
-        assert_eq!(frontmatter.entries.get("type").expect("type").span.start.line, 2);
-        assert_eq!(frontmatter.entries.get("title").expect("title").span.start.line, 3);
+        assert_eq!(
+            frontmatter
+                .entries
+                .get("type")
+                .expect("type")
+                .span
+                .start
+                .line,
+            2
+        );
+        assert_eq!(
+            frontmatter
+                .entries
+                .get("title")
+                .expect("title")
+                .span
+                .start
+                .line,
+            3
+        );
         assert_eq!(frontmatter.span.start.line, 1);
     }
 
@@ -268,7 +306,12 @@ mod tests {
     fn unterminated_block_is_malformed() {
         let doc = Document::parse("---\ntype: Metric\nno closing delimiter\n");
         let error = doc.frontmatter.error().expect("error");
-        assert_eq!(*error, FrontmatterError::Unterminated { span: Span::at(Position::new(1, 1)) });
+        assert_eq!(
+            *error,
+            FrontmatterError::Unterminated {
+                span: Span::at(Position::new(1, 1))
+            }
+        );
         assert!(error.message().contains("never closed"));
         assert_eq!(error.span().start.line, 1);
     }
@@ -286,8 +329,14 @@ mod tests {
     fn invalid_yaml_is_malformed_with_a_shifted_position() {
         let doc = Document::parse("---\ntype: [unclosed\n---\nbody\n");
         let error = doc.frontmatter.error().expect("error");
-        assert!(matches!(error, FrontmatterError::Invalid { .. }), "got {error:?}");
-        assert!(error.span().start.line >= 2, "position should be shifted past the opening ---");
+        assert!(
+            matches!(error, FrontmatterError::Invalid { .. }),
+            "got {error:?}"
+        );
+        assert!(
+            error.span().start.line >= 2,
+            "position should be shifted past the opening ---"
+        );
         assert!(error.message().starts_with("frontmatter is not valid YAML"));
     }
 
@@ -296,7 +345,10 @@ mod tests {
         let doc = Document::parse("---\n- one\n- two\n---\nbody\n");
         let error = doc.frontmatter.error().expect("error");
         assert!(matches!(error, FrontmatterError::NotAMapping { .. }));
-        assert_eq!(error.message(), "frontmatter must be a mapping of keys to values");
+        assert_eq!(
+            error.message(),
+            "frontmatter must be a mapping of keys to values"
+        );
         assert_eq!(error.span().start.line, 2);
     }
 
@@ -312,7 +364,10 @@ mod tests {
     fn handles_crlf_line_endings() {
         let doc = Document::parse("---\r\ntype: Metric\r\n---\r\nbody\r\n");
         let frontmatter = doc.frontmatter.parsed().expect("parsed");
-        assert_eq!(frontmatter.entries.get("type").and_then(Node::as_str), Some("Metric"));
+        assert_eq!(
+            frontmatter.entries.get("type").and_then(Node::as_str),
+            Some("Metric")
+        );
         assert_eq!(doc.body.text, "body\r\n");
     }
 
@@ -348,7 +403,10 @@ mod tests {
     #[test]
     fn body_position_clamps_past_the_end() {
         let doc = Document::parse("---\ntype: Metric\n---\nabc\n");
-        assert_eq!(doc.body.position_at(9_999), doc.body.position_at(doc.body.text.len()));
+        assert_eq!(
+            doc.body.position_at(9_999),
+            doc.body.position_at(doc.body.text.len())
+        );
     }
 
     #[test]

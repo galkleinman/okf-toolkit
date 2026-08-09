@@ -245,8 +245,11 @@ mod tests {
 
     #[test]
     fn exactly_three_conformance_rules_exist() {
-        let conformance: Vec<_> =
-            RULES.iter().filter(|r| r.kind == RuleKind::Conformance).map(|r| r.code).collect();
+        let conformance: Vec<_> = RULES
+            .iter()
+            .filter(|r| r.kind == RuleKind::Conformance)
+            .map(|r| r.code)
+            .collect();
         assert_eq!(conformance, ["okf-parse", "okf-type", "okf-reserved"]);
     }
 
@@ -255,7 +258,12 @@ mod tests {
     #[test]
     fn no_lint_rule_defaults_to_error() {
         for rule in RULES.iter().filter(|r| r.kind == RuleKind::Lint) {
-            assert_ne!(rule.default_severity, Severity::Error, "{} defaults to error", rule.code);
+            assert_ne!(
+                rule.default_severity,
+                Severity::Error,
+                "{} defaults to error",
+                rule.code
+            );
         }
     }
 
@@ -275,8 +283,16 @@ mod tests {
         assert_eq!(codes.len(), count, "duplicate rule codes");
 
         for rule in RULES {
-            assert!(!rule.description.is_empty(), "{} has no description", rule.code);
-            assert!(rule.spec_section.starts_with('§'), "{} has no spec section", rule.code);
+            assert!(
+                !rule.description.is_empty(),
+                "{} has no description",
+                rule.code
+            );
+            assert!(
+                rule.spec_section.starts_with('§'),
+                "{} has no spec section",
+                rule.code
+            );
         }
     }
 

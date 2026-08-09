@@ -178,7 +178,10 @@ fn marker_position(marker: &saphyr::Marker) -> Position {
 }
 
 fn convert(node: &MarkedYamlOwned) -> Node {
-    let span = Span::new(marker_position(&node.span.start), marker_position(&node.span.end));
+    let span = Span::new(
+        marker_position(&node.span.start),
+        marker_position(&node.span.end),
+    );
     let value = match &node.data {
         YamlDataOwned::Value(scalar) => convert_scalar(scalar),
         YamlDataOwned::Sequence(items) => Value::Sequence(items.iter().map(convert).collect()),
@@ -222,7 +225,10 @@ mod tests {
         assert_eq!(map.get("s").and_then(Node::as_str), Some("hello"));
         assert_eq!(map.get("b").and_then(Node::as_bool), Some(true));
         assert_eq!(map.get("i").and_then(Node::as_int), Some(42));
-        assert_eq!(map.get("f").map(|n| n.value.clone()), Some(Value::Float(1.5)));
+        assert_eq!(
+            map.get("f").map(|n| n.value.clone()),
+            Some(Value::Float(1.5))
+        );
         assert!(map.get("n").expect("n").is_null());
     }
 
@@ -241,7 +247,11 @@ mod tests {
         let map = node.as_mapping().expect("mapping");
         assert_eq!(map.get("type").expect("type").span.start.line, 1);
 
-        let tags = map.get("tags").expect("tags").as_sequence().expect("sequence");
+        let tags = map
+            .get("tags")
+            .expect("tags")
+            .as_sequence()
+            .expect("sequence");
         assert_eq!(tags.len(), 1);
         assert_eq!(tags[0].span.start.line, 3);
     }
@@ -314,11 +324,26 @@ mod tests {
     fn scalar_text_renders_scalars_only() {
         let node = parse("s: hi\nb: false\ni: 7\nf: 2.5\nn: null\nseq: [1]\nmap: { a: 1 }\n");
         let map = node.as_mapping().expect("mapping");
-        assert_eq!(map.get("s").and_then(Node::scalar_text).as_deref(), Some("hi"));
-        assert_eq!(map.get("b").and_then(Node::scalar_text).as_deref(), Some("false"));
-        assert_eq!(map.get("i").and_then(Node::scalar_text).as_deref(), Some("7"));
-        assert_eq!(map.get("f").and_then(Node::scalar_text).as_deref(), Some("2.5"));
-        assert_eq!(map.get("n").and_then(Node::scalar_text).as_deref(), Some("null"));
+        assert_eq!(
+            map.get("s").and_then(Node::scalar_text).as_deref(),
+            Some("hi")
+        );
+        assert_eq!(
+            map.get("b").and_then(Node::scalar_text).as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            map.get("i").and_then(Node::scalar_text).as_deref(),
+            Some("7")
+        );
+        assert_eq!(
+            map.get("f").and_then(Node::scalar_text).as_deref(),
+            Some("2.5")
+        );
+        assert_eq!(
+            map.get("n").and_then(Node::scalar_text).as_deref(),
+            Some("null")
+        );
         assert!(map.get("seq").and_then(Node::scalar_text).is_none());
         assert!(map.get("map").and_then(Node::scalar_text).is_none());
     }
@@ -370,11 +395,8 @@ mod tests {
         assert!(convert(&alias).is_null());
 
         let mut representation = MarkedYamlOwned::value_from_str("placeholder");
-        representation.data = YamlDataOwned::Representation(
-            "raw".to_owned(),
-            saphyr::ScalarStyle::Plain,
-            None,
-        );
+        representation.data =
+            YamlDataOwned::Representation("raw".to_owned(), saphyr::ScalarStyle::Plain, None);
         assert_eq!(convert(&representation).as_str(), Some("raw"));
     }
 }

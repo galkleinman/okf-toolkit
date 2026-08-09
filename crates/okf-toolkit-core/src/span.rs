@@ -31,7 +31,10 @@ impl Span {
 
     /// A zero-width span at `position`.
     pub fn at(position: Position) -> Self {
-        Self { start: position, end: position }
+        Self {
+            start: position,
+            end: position,
+        }
     }
 
     /// Shifts both endpoints down by `lines`.

@@ -43,8 +43,7 @@ impl Date {
         let month = i64::from(self.month);
         let shifted_month = if month > 2 { month - 3 } else { month + 9 };
         let day_of_year = (153 * shifted_month + 2) / 5 + i64::from(self.day) - 1;
-        let day_of_era =
-            year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+        let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
         era * 146_097 + day_of_era - 719_468
     }
 
@@ -60,9 +59,17 @@ impl Date {
         let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
         let shifted_month = (5 * day_of_year + 2) / 153;
         let day = (day_of_year - (153 * shifted_month + 2) / 5 + 1) as u8;
-        let month = if shifted_month < 10 { shifted_month + 3 } else { shifted_month - 9 } as u8;
+        let month = if shifted_month < 10 {
+            shifted_month + 3
+        } else {
+            shifted_month - 9
+        } as u8;
 
-        Self { year: (year + i64::from(month <= 2)) as i32, month, day }
+        Self {
+            year: (year + i64::from(month <= 2)) as i32,
+            month,
+            day,
+        }
     }
 }
 
@@ -73,7 +80,9 @@ impl std::fmt::Display for Date {
 }
 
 fn parse_two_digits(text: &str) -> Option<u8> {
-    text.bytes().all(|b| b.is_ascii_digit()).then(|| text.parse().ok())?
+    text.bytes()
+        .all(|b| b.is_ascii_digit())
+        .then(|| text.parse().ok())?
 }
 
 fn is_leap_year(year: i32) -> bool {
@@ -172,15 +181,41 @@ mod tests {
 
     #[test]
     fn parses_valid_dates() {
-        assert_eq!(Date::parse("2026-08-09"), Some(Date { year: 2026, month: 8, day: 9 }));
-        assert_eq!(Date::parse("2024-02-29"), Some(Date { year: 2024, month: 2, day: 29 }));
-        assert_eq!(Date::parse("2000-02-29"), Some(Date { year: 2000, month: 2, day: 29 }));
+        assert_eq!(
+            Date::parse("2026-08-09"),
+            Some(Date {
+                year: 2026,
+                month: 8,
+                day: 9
+            })
+        );
+        assert_eq!(
+            Date::parse("2024-02-29"),
+            Some(Date {
+                year: 2024,
+                month: 2,
+                day: 29
+            })
+        );
+        assert_eq!(
+            Date::parse("2000-02-29"),
+            Some(Date {
+                year: 2000,
+                month: 2,
+                day: 29
+            })
+        );
     }
 
     #[test]
     fn rejects_malformed_dates() {
         for bad in [
-            "2026-8-09", "2026/08/09", "20260809", "2026-08-09T00:00:00Z", "", "abcd-ef-gh",
+            "2026-8-09",
+            "2026/08/09",
+            "20260809",
+            "2026-08-09T00:00:00Z",
+            "",
+            "abcd-ef-gh",
             "2026-08-9",
         ] {
             assert!(Date::parse(bad).is_none(), "{bad} should not parse");
@@ -189,7 +224,13 @@ mod tests {
 
     #[test]
     fn rejects_impossible_dates() {
-        for bad in ["2026-13-01", "2026-00-01", "2026-01-00", "2026-01-32", "2026-04-31"] {
+        for bad in [
+            "2026-13-01",
+            "2026-00-01",
+            "2026-01-00",
+            "2026-01-32",
+            "2026-04-31",
+        ] {
             assert!(Date::parse(bad).is_none(), "{bad} should not parse");
         }
     }
@@ -211,7 +252,15 @@ mod tests {
 
     #[test]
     fn dates_render_zero_padded() {
-        assert_eq!(Date { year: 2026, month: 1, day: 5 }.to_string(), "2026-01-05");
+        assert_eq!(
+            Date {
+                year: 2026,
+                month: 1,
+                day: 5
+            }
+            .to_string(),
+            "2026-01-05"
+        );
     }
 
     #[test]
@@ -219,23 +268,45 @@ mod tests {
         assert_eq!(Date::from_unix_seconds(0).to_string(), "1970-01-01");
         assert_eq!(Date::from_unix_seconds(86_399).to_string(), "1970-01-01");
         assert_eq!(Date::from_unix_seconds(86_400).to_string(), "1970-01-02");
-        assert_eq!(Date::from_unix_seconds(1_774_483_200).to_string(), "2026-03-26");
-        assert_eq!(Date::from_unix_seconds(951_782_400).to_string(), "2000-02-29");
+        assert_eq!(
+            Date::from_unix_seconds(1_774_483_200).to_string(),
+            "2026-03-26"
+        );
+        assert_eq!(
+            Date::from_unix_seconds(951_782_400).to_string(),
+            "2000-02-29"
+        );
         assert_eq!(Date::from_unix_seconds(-86_400).to_string(), "1969-12-31");
     }
 
     #[test]
     fn day_number_round_trips_across_epochs_and_leap_years() {
         for text in [
-            "1970-01-01", "1969-12-31", "2000-02-29", "2024-02-29", "1900-03-01", "2026-08-09",
-            "1600-01-01", "2400-12-31",
+            "1970-01-01",
+            "1969-12-31",
+            "2000-02-29",
+            "2024-02-29",
+            "1900-03-01",
+            "2026-08-09",
+            "1600-01-01",
+            "2400-12-31",
         ] {
             let date = Date::parse(text).expect("valid");
             let days = date.to_days_since_epoch();
             assert_eq!(Date::from_days_since_epoch(days), date, "{text}");
         }
-        assert_eq!(Date::parse("1970-01-01").expect("valid").to_days_since_epoch(), 0);
-        assert_eq!(Date::parse("1970-01-02").expect("valid").to_days_since_epoch(), 1);
+        assert_eq!(
+            Date::parse("1970-01-01")
+                .expect("valid")
+                .to_days_since_epoch(),
+            0
+        );
+        assert_eq!(
+            Date::parse("1970-01-02")
+                .expect("valid")
+                .to_days_since_epoch(),
+            1
+        );
     }
 
     #[test]
@@ -245,10 +316,16 @@ mod tests {
 
         let next_day_local = Timestamp::parse("2026-05-29T00:53:05+02:00").expect("valid");
         assert_eq!(next_day_local, utc);
-        assert_eq!(next_day_local.date(), Date::parse("2026-05-28").expect("valid"));
+        assert_eq!(
+            next_day_local.date(),
+            Date::parse("2026-05-28").expect("valid")
+        );
 
         let previous_day_local = Timestamp::parse("2026-05-28T23:30:00-02:00").expect("valid");
-        assert_eq!(previous_day_local.date(), Date::parse("2026-05-29").expect("valid"));
+        assert_eq!(
+            previous_day_local.date(),
+            Date::parse("2026-05-29").expect("valid")
+        );
     }
 
     #[test]
@@ -267,16 +344,28 @@ mod tests {
     #[test]
     fn normalises_numeric_offsets_to_utc() {
         let utc = Timestamp::parse("2026-05-28T22:53:05Z").expect("valid");
-        assert_eq!(Timestamp::parse("2026-05-28T22:53:05+00:00"), Some(utc.clone()));
-        assert_eq!(Timestamp::parse("2026-05-29T00:53:05+02:00"), Some(utc.clone()));
-        assert_eq!(Timestamp::parse("2026-05-28T20:53:05-0200"), Some(utc.clone()));
+        assert_eq!(
+            Timestamp::parse("2026-05-28T22:53:05+00:00"),
+            Some(utc.clone())
+        );
+        assert_eq!(
+            Timestamp::parse("2026-05-29T00:53:05+02:00"),
+            Some(utc.clone())
+        );
+        assert_eq!(
+            Timestamp::parse("2026-05-28T20:53:05-0200"),
+            Some(utc.clone())
+        );
         assert_eq!(Timestamp::parse("2026-05-28T21:53:05-01"), Some(utc));
     }
 
     #[test]
     fn accepts_space_separator_and_fractional_seconds() {
         let with_t = Timestamp::parse("2026-06-25T09:00:00Z").expect("valid");
-        assert_eq!(Timestamp::parse("2026-06-25 09:00:00Z"), Some(with_t.clone()));
+        assert_eq!(
+            Timestamp::parse("2026-06-25 09:00:00Z"),
+            Some(with_t.clone())
+        );
         assert_eq!(Timestamp::parse("2026-06-25T09:00:00.123Z"), Some(with_t));
     }
 

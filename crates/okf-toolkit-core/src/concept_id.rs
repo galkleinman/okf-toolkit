@@ -34,7 +34,9 @@ impl ConceptId {
 
     /// The final path segment.
     pub fn name(&self) -> &str {
-        self.0.rsplit_once('/').map_or(self.0.as_str(), |(_, name)| name)
+        self.0
+            .rsplit_once('/')
+            .map_or(self.0.as_str(), |(_, name)| name)
     }
 
     /// The parent directory, or `None` for a concept at the bundle root.
@@ -117,7 +119,10 @@ mod tests {
         let original = id("tables/orders.md");
         let path = original.to_relative_path();
         assert_eq!(path, Path::new("tables").join("orders.md"));
-        assert_eq!(ConceptId::from_relative_path(&path).expect("round trip"), original);
+        assert_eq!(
+            ConceptId::from_relative_path(&path).expect("round trip"),
+            original
+        );
     }
 
     #[test]

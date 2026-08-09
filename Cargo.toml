@@ -1,0 +1,56 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/okf-toolkit-core",
+    "crates/okf-toolkit-mcp",
+    "crates/okf-toolkit-web",
+    "crates/okf-toolkit",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "Apache-2.0"
+repository = "https://github.com/galkleinman/okf-toolkit"
+homepage = "https://github.com/galkleinman/okf-toolkit"
+authors = ["Gal Kleinman"]
+keywords = ["okf", "knowledge", "markdown", "frontmatter", "mcp"]
+categories = ["command-line-utilities", "parser-implementations"]
+
+[workspace.dependencies]
+okf-toolkit-core = { version = "0.1.0", path = "crates/okf-toolkit-core" }
+okf-toolkit-mcp = { version = "0.1.0", path = "crates/okf-toolkit-mcp" }
+okf-toolkit-web = { version = "0.1.0", path = "crates/okf-toolkit-web" }
+
+axum = "0.8.9"
+clap = { version = "4.6.6", features = ["derive"] }
+ignore = "0.4.33"
+pulldown-cmark = { version = "0.13.4", default-features = false }
+rmcp = { version = "3.1.2", features = ["server", "macros", "transport-io"] }
+rust-embed = "8.12.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+saphyr = "0.0.11"
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "io-std", "signal"] }
+
+assert_cmd = "2.2.2"
+insta = { version = "1.48.0", features = ["json"] }
+predicates = "3.1.4"
+tempfile = "3.27.0"
+tower = "0.5.3"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

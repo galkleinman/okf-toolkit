@@ -4,6 +4,7 @@
 
 pub mod bundle;
 pub mod concept_id;
+pub mod conformance;
 pub mod date;
 pub mod diagnostic;
 pub mod document;

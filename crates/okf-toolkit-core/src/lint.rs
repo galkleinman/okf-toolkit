@@ -681,7 +681,10 @@ mod tests {
             ("a.md", "---\ntype: X\ntitle: T\ndescription: D\n---\n"),
         ]);
 
-        assert!(!findings.is_empty(), "expected the orphaned concept to be reported");
+        assert!(
+            !findings.is_empty(),
+            "expected the orphaned concept to be reported"
+        );
         for finding in &findings {
             assert_eq!(
                 finding.path,

@@ -1,0 +1,13 @@
+---
+source: crates/okf-toolkit/src/format.rs
+expression: "report().render(Format::Human)"
+---
+a.md
+    2  error okf-type  frontmatter is missing the required `type` field
+         help: every concept needs a `type`
+    7  warning broken-link  link target `/gone.md` does not exist
+
+b.md
+       info orphan-concept  no concept links to `b`
+
+1 error(s), 1 warning(s), 1 info(s)

@@ -1,0 +1,7 @@
+---
+source: crates/okf-toolkit/src/format.rs
+expression: "report().render(Format::Github)"
+---
+::error file=a.md,line=2,col=1,title=okf-type::frontmatter is missing the required `type` field
+::warning file=a.md,line=7,col=5,title=broken-link::link target `/gone.md` does not exist
+::notice file=b.md,title=orphan-concept::no concept links to `b`

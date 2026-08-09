@@ -1,0 +1,41 @@
+---
+source: crates/okf-toolkit/src/format.rs
+expression: "report().render(Format::Json)"
+---
+{
+  "bundle": "./knowledge",
+  "diagnostics": [
+    {
+      "code": "okf-type",
+      "column": 1,
+      "help": "every concept needs a `type`",
+      "line": 2,
+      "message": "frontmatter is missing the required `type` field",
+      "path": "a.md",
+      "severity": "error"
+    },
+    {
+      "code": "broken-link",
+      "column": 5,
+      "help": null,
+      "line": 7,
+      "message": "link target `/gone.md` does not exist",
+      "path": "a.md",
+      "severity": "warning"
+    },
+    {
+      "code": "orphan-concept",
+      "column": null,
+      "help": null,
+      "line": null,
+      "message": "no concept links to `b`",
+      "path": "b.md",
+      "severity": "info"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "infos": 1,
+    "warnings": 1
+  }
+}

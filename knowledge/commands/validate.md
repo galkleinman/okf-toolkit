@@ -20,7 +20,7 @@ okft validate [BUNDLE] [--format human|json|github|sarif] [--strict]
 # Behaviour
 
 Reports only the three conformance rules described in
-[conformance vs lint](../decisions/conformance-vs-lint.md). Exits `1` if any
+[conformance vs lint](../decisions/does-not-exist.md). Exits `1` if any
 error was reported, `2` if the run could not happen at all, and `0` otherwise.
 
 A broken cross-link does not fail this command. That is deliberate, not an

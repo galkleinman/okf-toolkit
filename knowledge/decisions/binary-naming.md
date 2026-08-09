@@ -1,5 +1,4 @@
 ---
-type: Decision
 title: The binary is okft and the crates are namespaced
 description: The obvious names were already taken on crates.io by unrelated projects, so everything moved under okf-toolkit-*.
 tags: [decision, distribution, naming]

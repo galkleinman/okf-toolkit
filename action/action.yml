@@ -1,0 +1,167 @@
+name: Validate OKF bundle
+description: >-
+  Validate an Open Knowledge Format (OKF) v0.2 bundle with okft, and annotate
+  findings inline on the pull request.
+author: Gal Kleinman
+
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  path:
+    description: Path to the bundle directory, relative to the workspace.
+    required: false
+    default: knowledge
+  command:
+    description: >-
+      Which check to run: `validate` for OKF §11 conformance only, or `lint` to
+      include advisory hygiene rules.
+    required: false
+    default: validate
+  strict:
+    description: >-
+      Treat lint warnings as errors. Only meaningful with `command: lint`;
+      conformance errors always fail regardless.
+    required: false
+    default: "false"
+  deny:
+    description: Space-separated rule codes to promote to errors (for example `broken-link`).
+    required: false
+    default: ""
+  allow:
+    description: Space-separated rule codes to silence. Conformance rules cannot be silenced.
+    required: false
+    default: ""
+  today:
+    description: >-
+      Date used for staleness checks, as YYYY-MM-DD. Pin it to keep runs
+      reproducible; defaults to the current UTC date.
+    required: false
+    default: ""
+  format:
+    description: >-
+      Output rendering: `github` for inline annotations, or `human`, `json`,
+      `sarif`.
+    required: false
+    default: github
+  version:
+    description: >-
+      Release tag of okf-toolkit to download, for example `v0.1.0`. Defaults to
+      the version this action was released with.
+    required: false
+    default: ""
+  binary:
+    description: >-
+      Path to an existing okft binary. Skips the download entirely, for
+      air-gapped runners or for testing the action against an unreleased build.
+    required: false
+    default: ""
+
+outputs:
+  exit-code:
+    description: The exit code okft returned (0 clean, 1 findings, 2 usage error).
+    value: ${{ steps.run.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    # A prebuilt static binary is what keeps consuming repositories' CI fast.
+    # Building from source here would cost every consumer a Rust toolchain and
+    # a cold compile on every run.
+    - name: Resolve okft
+      id: install
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_BINARY: ${{ inputs.binary }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+
+        if [ -n "${INPUT_BINARY}" ]; then
+          chmod +x "${INPUT_BINARY}" || true
+          echo "binary=${INPUT_BINARY}" >> "${GITHUB_OUTPUT}"
+          exit 0
+        fi
+
+        version="${INPUT_VERSION:-$(cat "${ACTION_PATH}/VERSION" 2>/dev/null || echo "")}"
+        if [ -z "${version}" ]; then
+          echo "::error::could not determine which okf-toolkit version to install; set the \`version\` input" >&2
+          exit 1
+        fi
+        version="${version#v}"
+
+        case "${RUNNER_OS}-${RUNNER_ARCH}" in
+          Linux-X64)   target="x86_64-unknown-linux-gnu" ;;
+          Linux-ARM64) target="aarch64-unknown-linux-gnu" ;;
+          macOS-X64)   target="x86_64-apple-darwin" ;;
+          macOS-ARM64) target="aarch64-apple-darwin" ;;
+          Windows-X64) target="x86_64-pc-windows-msvc" ;;
+          *)
+            echo "::error::unsupported runner ${RUNNER_OS}-${RUNNER_ARCH}" >&2
+            exit 1
+            ;;
+        esac
+
+        dest="${RUNNER_TEMP}/okft-${version}"
+        mkdir -p "${dest}"
+
+        if [ "${RUNNER_OS}" = "Windows" ]; then
+          archive="okf-toolkit-${target}.zip"
+        else
+          archive="okf-toolkit-${target}.tar.gz"
+        fi
+        url="https://github.com/galkleinman/okf-toolkit/releases/download/v${version}/${archive}"
+
+        echo "Downloading ${url}"
+        cd "${dest}"
+        curl --proto '=https' --tlsv1.2 -fsSL --retry 3 -o "${archive}" "${url}"
+        if [ "${RUNNER_OS}" = "Windows" ]; then
+          unzip -q -o "${archive}"
+        else
+          tar -xzf "${archive}"
+        fi
+
+        binary="$(find "${dest}" -name 'okft' -o -name 'okft.exe' | head -n 1)"
+        if [ -z "${binary}" ]; then
+          echo "::error::okft binary not found in ${archive}" >&2
+          exit 1
+        fi
+        chmod +x "${binary}"
+        echo "binary=${binary}" >> "${GITHUB_OUTPUT}"
+
+    - name: Run okft
+      id: run
+      shell: bash
+      env:
+        OKFT: ${{ steps.install.outputs.binary }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_STRICT: ${{ inputs.strict }}
+        INPUT_DENY: ${{ inputs.deny }}
+        INPUT_ALLOW: ${{ inputs.allow }}
+        INPUT_TODAY: ${{ inputs.today }}
+        INPUT_FORMAT: ${{ inputs.format }}
+      run: |
+        set -uo pipefail
+
+        args=("${INPUT_COMMAND}" "${INPUT_PATH}" "--format" "${INPUT_FORMAT}")
+        if [ "${INPUT_STRICT}" = "true" ]; then
+          args+=("--strict")
+        fi
+        for rule in ${INPUT_DENY}; do
+          args+=("--deny" "${rule}")
+        done
+        for rule in ${INPUT_ALLOW}; do
+          args+=("--allow" "${rule}")
+        done
+        if [ -n "${INPUT_TODAY}" ]; then
+          args+=("--today" "${INPUT_TODAY}")
+        fi
+
+        echo "okft ${args[*]}"
+        "${OKFT}" "${args[@]}"
+        code=$?
+        echo "exit-code=${code}" >> "${GITHUB_OUTPUT}"
+        exit "${code}"

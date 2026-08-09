@@ -1,0 +1,157 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Build artifacts without publishing or creating a release.
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --locked -p okf-toolkit --target ${{ matrix.target }}
+
+      - name: Package
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          staging="okf-toolkit-${TARGET}"
+          mkdir -p "${staging}"
+          cp README.md LICENSE "${staging}/"
+
+          if [ "${RUNNER_OS}" = "Windows" ]; then
+            cp "target/${TARGET}/release/okft.exe" "${staging}/"
+            7z a "${staging}.zip" "${staging}"
+          else
+            cp "target/${TARGET}/release/okft" "${staging}/"
+            tar -czf "${staging}.tar.gz" "${staging}"
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: okf-toolkit-${{ matrix.target }}
+          path: |
+            okf-toolkit-*.tar.gz
+            okf-toolkit-*.zip
+          if-no-files-found: error
+
+  # The action downloads binaries from the release, so the release must exist
+  # before the crates are published and before the floating tag moves.
+  release:
+    name: Publish GitHub release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Check the action's pinned version matches the tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pinned="$(cat action/VERSION)"
+          if [ "${tag}" != "${pinned}" ]; then
+            echo "::error::action/VERSION is ${pinned} but the tag is ${tag}" >&2
+            exit 1
+          fi
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+  publish:
+    name: Publish to crates.io
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      # Trusted Publishing exchanges this OIDC token for a short-lived
+      # registry token, so no long-lived CARGO_REGISTRY_TOKEN secret exists.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      # Published in dependency order; each must be live on the index before
+      # the next one resolves it.
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          for crate in okf-toolkit-core okf-toolkit-mcp okf-toolkit-web okf-toolkit; do
+            echo "::group::publishing ${crate}"
+            cargo publish -p "${crate}" --locked
+            echo "::endgroup::"
+          done
+
+  floating-tag:
+    name: Move the major version tag
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Lets consumers write `uses: galkleinman/okf-toolkit@v1` and keep
+      # receiving patch releases.
+      - name: Update the floating tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          major="$(echo "${GITHUB_REF_NAME}" | cut -d. -f1)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "${major}" "${GITHUB_REF_NAME}"
+          git push -f origin "${major}"

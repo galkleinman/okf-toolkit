@@ -11,6 +11,9 @@ authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
 readme = "README.md"
+# These integration tests read the vendored Google bundles at the repository
+# root, which are not part of the published package.
+exclude = ["tests/"]
 
 [dependencies]
 ignore.workspace = true

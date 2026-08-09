@@ -841,12 +841,14 @@ name = "okf-toolkit"
 version = "0.1.0"
 dependencies = [
  "assert_cmd",
+ "axum",
  "clap",
  "insta",
  "okf-toolkit-core",
  "okf-toolkit-mcp",
  "okf-toolkit-web",
  "predicates",
+ "rmcp",
  "serde",
  "serde_json",
  "tempfile",

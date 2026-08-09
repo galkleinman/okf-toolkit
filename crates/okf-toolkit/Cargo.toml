@@ -24,6 +24,8 @@ okf-toolkit-web.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+rmcp.workspace = true
+axum.workspace = true
 
 [dev-dependencies]
 assert_cmd.workspace = true

@@ -51,6 +51,31 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Serve a bundle to AI agents over MCP, or to a browser as a graph.
+    Serve(ServeArgs),
+}
+
+#[derive(Debug, clap::Args)]
+struct ServeArgs {
+    /// Path to the bundle directory.
+    #[arg(default_value = ".")]
+    bundle: PathBuf,
+
+    /// Serve the bundle over the Model Context Protocol on stdio.
+    #[arg(long, conflicts_with = "web")]
+    mcp: bool,
+
+    /// Serve a local graph viewer over HTTP.
+    #[arg(long, conflicts_with = "mcp")]
+    web: bool,
+
+    /// Address to bind the web viewer to.
+    #[arg(long, default_value = "127.0.0.1:7878")]
+    addr: String,
+
+    /// Date used for staleness reporting, as `YYYY-MM-DD`. Defaults to today (UTC).
+    #[arg(long, value_name = "YYYY-MM-DD")]
+    today: Option<String>,
 }
 
 #[derive(Debug, clap::Args)]
@@ -107,6 +132,7 @@ fn execute(command: &Command) -> ExitCode {
             print!("{}", render_rules(*json));
             ExitCode::SUCCESS
         }
+        Command::Serve(args) => serve::run(args),
     }
 }
 
@@ -245,7 +271,15 @@ mod tests {
     fn check_args(command: Command) -> Option<CheckArgs> {
         match command {
             Command::Validate(args) | Command::Lint(args) => Some(args),
-            Command::Rules { .. } => None,
+            Command::Rules { .. } | Command::Serve(_) => None,
+        }
+    }
+
+    /// Unwraps the arguments of a serve command, or `None` for anything else.
+    fn serve_args(command: Command) -> Option<ServeArgs> {
+        match command {
+            Command::Serve(args) => Some(args),
+            Command::Validate(_) | Command::Lint(_) | Command::Rules { .. } => None,
         }
     }
 
@@ -254,8 +288,46 @@ mod tests {
     }
 
     #[test]
-    fn rules_is_not_a_check_command() {
+    fn commands_are_told_apart() {
         assert!(check_args(parse(&["okft", "rules"]).command).is_none());
+        assert!(check_args(parse(&["okft", "serve", "--mcp"]).command).is_none());
+        assert!(serve_args(parse(&["okft", "rules"]).command).is_none());
+        assert!(serve_args(parse(&["okft", "validate"]).command).is_none());
+        assert!(serve_args(parse(&["okft", "lint"]).command).is_none());
+    }
+
+    #[test]
+    fn parses_the_serve_command() {
+        let cli = parse(&[
+            "okft",
+            "serve",
+            "./knowledge",
+            "--web",
+            "--addr",
+            "0.0.0.0:9000",
+            "--today",
+            "2026-08-09",
+        ]);
+        let args = serve_args(cli.command).expect("serve command");
+        assert_eq!(args.bundle, PathBuf::from("./knowledge"));
+        assert!(args.web);
+        assert!(!args.mcp);
+        assert_eq!(args.addr, "0.0.0.0:9000");
+        assert_eq!(args.today.as_deref(), Some("2026-08-09"));
+    }
+
+    #[test]
+    fn serve_defaults_to_a_loopback_address() {
+        let cli = parse(&["okft", "serve", "--mcp"]);
+        let args = serve_args(cli.command).expect("serve command");
+        assert_eq!(args.addr, "127.0.0.1:7878");
+        assert_eq!(args.bundle, PathBuf::from("."));
+        assert!(args.mcp);
+    }
+
+    #[test]
+    fn mcp_and_web_conflict() {
+        assert!(Cli::try_parse_from(["okft", "serve", "--mcp", "--web"]).is_err());
     }
 
     #[test]
@@ -346,5 +418,112 @@ mod tests {
         assert!(is_failing(Severity::Error));
         assert!(!is_failing(Severity::Warning));
         assert!(!is_failing(Severity::Info));
+    }
+}
+
+/// Serving a bundle over MCP or HTTP.
+mod serve {
+    use std::process::ExitCode;
+
+    use okf_toolkit_core::bundle::Bundle;
+    use okf_toolkit_mcp::OkfServer;
+    use okf_toolkit_web::Viewer;
+    use rmcp::ServiceExt as _;
+
+    use super::{EXIT_USAGE, ServeArgs, resolve_today};
+
+    pub(super) fn run(args: &ServeArgs) -> ExitCode {
+        if !args.mcp && !args.web {
+            eprintln!("error: choose a transport: `--mcp` for agents, or `--web` for a browser");
+            return ExitCode::from(EXIT_USAGE);
+        }
+
+        let today = match resolve_today(args.today.as_deref()) {
+            Ok(today) => today,
+            Err(error) => {
+                eprintln!("error: {error}");
+                return ExitCode::from(EXIT_USAGE);
+            }
+        };
+
+        let bundle = match Bundle::load(&args.bundle) {
+            Ok(bundle) => bundle,
+            Err(error) => {
+                eprintln!("error: {error}");
+                return ExitCode::from(EXIT_USAGE);
+            }
+        };
+
+        // The remaining failures below are all "the OS refused something the
+        // process cannot continue without". They panic with a clear message
+        // rather than being handled as ordinary errors, because there is no
+        // useful recovery and no way to exercise them from a test.
+        let runtime = tokio::runtime::Runtime::new().expect("failed to start the async runtime");
+
+        if args.mcp {
+            runtime.block_on(serve_mcp(bundle, today))
+        } else {
+            let name = args.bundle.display().to_string();
+            runtime.block_on(serve_web(bundle, name, today, &args.addr))
+        }
+    }
+
+    /// Serves MCP on stdio.
+    ///
+    /// Nothing may be written to stdout here: it carries the JSON-RPC stream,
+    /// so any stray print would corrupt the protocol. Status goes to stderr.
+    async fn serve_mcp(bundle: Bundle, today: okf_toolkit_core::date::Date) -> ExitCode {
+        eprintln!(
+            "okft: serving {} concept(s) over MCP on stdio",
+            bundle.concepts().count()
+        );
+
+        let server = OkfServer::new(bundle, today);
+        let running = server
+            .serve(rmcp::transport::io::stdio())
+            .await
+            .expect("failed to start the MCP server on stdio");
+        running
+            .waiting()
+            .await
+            .expect("the MCP session ended badly");
+        ExitCode::SUCCESS
+    }
+
+    async fn serve_web(
+        bundle: Bundle,
+        name: String,
+        today: okf_toolkit_core::date::Date,
+        addr: &str,
+    ) -> ExitCode {
+        let concepts = bundle.concepts().count();
+        let viewer = Viewer::render(&bundle, &name, today);
+        // The page embeds Cytoscape, Marked, and the bundle data, so reporting
+        // its size makes it obvious that nothing else will be fetched.
+        let page_kib = viewer.html().len() / 1024;
+        let router = viewer.router();
+
+        let listener = match tokio::net::TcpListener::bind(addr).await {
+            Ok(listener) => listener,
+            Err(error) => {
+                eprintln!("error: could not bind {addr}: {error}");
+                return ExitCode::from(EXIT_USAGE);
+            }
+        };
+
+        let bound = listener
+            .local_addr()
+            .expect("a bound listener always has an address");
+        println!(
+            "okft: serving {concepts} concept(s) at http://{bound} ({page_kib} KiB, self-contained)"
+        );
+
+        axum::serve(listener, router)
+            .with_graceful_shutdown(async {
+                let _ = tokio::signal::ctrl_c().await;
+            })
+            .await
+            .expect("the web server stopped unexpectedly");
+        ExitCode::SUCCESS
     }
 }

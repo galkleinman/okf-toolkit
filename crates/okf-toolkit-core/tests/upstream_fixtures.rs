@@ -67,15 +67,27 @@ fn every_upstream_bundle_actually_loaded_concepts() {
 #[test]
 fn the_vendored_fixtures_are_present_and_attributed() {
     let upstream = fixtures_root().join("upstream");
-    assert!(upstream.join("NOTICE").is_file(), "upstream NOTICE is missing");
+    assert!(
+        upstream.join("NOTICE").is_file(),
+        "upstream NOTICE is missing"
+    );
 
     for name in UPSTREAM_BUNDLES {
-        assert!(upstream.join(name).is_dir(), "fixture bundle {name} is missing");
+        assert!(
+            upstream.join(name).is_dir(),
+            "fixture bundle {name} is missing"
+        );
     }
 
     let notice = std::fs::read_to_string(upstream.join("NOTICE")).expect("readable NOTICE");
-    assert!(notice.contains("Apache License 2.0"), "NOTICE must record the licence");
-    assert!(notice.contains("commit "), "NOTICE must pin the upstream commit");
+    assert!(
+        notice.contains("Apache License 2.0"),
+        "NOTICE must record the licence"
+    );
+    assert!(
+        notice.contains("commit "),
+        "NOTICE must pin the upstream commit"
+    );
 }
 
 /// The upstream bundles exercise the v0.2 families, so the accessors should
@@ -88,7 +100,10 @@ fn upstream_bundles_exercise_the_v02_families() {
         .concepts()
         .filter_map(|entry| entry.document.frontmatter.parsed())
         .any(|frontmatter| frontmatter.concept_type() == Some("Attested Computation"));
-    assert!(has_attested_computation, "acme_retail should contain an Attested Computation");
+    assert!(
+        has_attested_computation,
+        "acme_retail should contain an Attested Computation"
+    );
 
     let has_human_review = acme
         .concepts()
@@ -96,7 +111,10 @@ fn upstream_bundles_exercise_the_v02_families() {
         .any(|frontmatter| {
             frontmatter.trust_tier() == okf_toolkit_core::trust::TrustTier::HumanReviewed
         });
-    assert!(has_human_review, "acme_retail should contain a human-reviewed concept");
+    assert!(
+        has_human_review,
+        "acme_retail should contain a human-reviewed concept"
+    );
 
     let has_sources = acme
         .concepts()

@@ -10,6 +10,7 @@ pub mod diagnostic;
 pub mod document;
 pub mod frontmatter;
 pub mod links;
+pub mod lint;
 pub mod span;
 pub mod trust;
 pub mod value;

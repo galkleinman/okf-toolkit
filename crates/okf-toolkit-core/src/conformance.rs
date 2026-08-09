@@ -35,8 +35,12 @@ fn check_frontmatter_parses(entry: &Entry, diagnostics: &mut Vec<Diagnostic>) {
     match &entry.document.frontmatter {
         FrontmatterState::Parsed(_) => {}
         FrontmatterState::Absent => diagnostics.push(
-            Diagnostic::new("okf-parse", &entry.path, "concept document has no frontmatter block")
-                .with_help("add a `---` delimited YAML block at the top of the file"),
+            Diagnostic::new(
+                "okf-parse",
+                &entry.path,
+                "concept document has no frontmatter block",
+            )
+            .with_help("add a `---` delimited YAML block at the top of the file"),
         ),
         FrontmatterState::Malformed(error) => diagnostics.push(
             Diagnostic::new("okf-parse", &entry.path, error.message()).with_span(error.span()),
@@ -58,7 +62,10 @@ fn check_type_present(entry: &Entry, diagnostics: &mut Vec<Diagnostic>) {
 
     let (message, span) = match frontmatter.entries.entry("type") {
         Some((key, _)) => ("`type` is present but empty", key.span),
-        None => ("frontmatter is missing the required `type` field", frontmatter.span),
+        None => (
+            "frontmatter is missing the required `type` field",
+            frontmatter.span,
+        ),
     };
     diagnostics.push(
         Diagnostic::new("okf-type", &entry.path, message)
@@ -93,7 +100,10 @@ fn check_index(entry: &Entry, diagnostics: &mut Vec<Diagnostic>) {
         if is_bundle_root && key == "okf_version" {
             continue;
         }
-        let span = frontmatter.entries.entry(key).map_or(frontmatter.span, |(k, _)| k.span);
+        let span = frontmatter
+            .entries
+            .entry(key)
+            .map_or(frontmatter.span, |(k, _)| k.span);
         let help = if is_bundle_root {
             "a bundle-root `index.md` may only declare `okf_version` (§12)"
         } else {
@@ -125,7 +135,10 @@ fn check_log(entry: &Entry, diagnostics: &mut Vec<Diagnostic>) {
                 Diagnostic::new(
                     "okf-reserved",
                     &entry.path,
-                    format!("log date heading `{}` is not an ISO 8601 date", heading.text),
+                    format!(
+                        "log date heading `{}` is not an ISO 8601 date",
+                        heading.text
+                    ),
                 )
                 .with_span(heading.span)
                 .with_help("use `## YYYY-MM-DD`, for example `## 2026-05-22`"),
@@ -147,7 +160,11 @@ mod tests {
     fn only(sources: &[(&str, &str)]) -> Diagnostic {
         let bundle = Bundle::from_sources(sources.iter().copied());
         let mut diagnostics = validate(&bundle);
-        assert_eq!(diagnostics.len(), 1, "expected one diagnostic, got {diagnostics:?}");
+        assert_eq!(
+            diagnostics.len(),
+            1,
+            "expected one diagnostic, got {diagnostics:?}"
+        );
         diagnostics.remove(0)
     }
 
@@ -324,15 +341,17 @@ mod tests {
         #[test]
         fn iso_date_headings_are_accepted() {
             assert!(
-                codes(&[("log.md", "# Log\n\n## 2026-05-22\n\n* **Update**\n\n## 2026-05-15\n")])
-                    .is_empty()
+                codes(&[(
+                    "log.md",
+                    "# Log\n\n## 2026-05-22\n\n* **Update**\n\n## 2026-05-15\n"
+                )])
+                .is_empty()
             );
         }
 
         #[test]
         fn a_non_iso_date_heading_is_an_error() {
-            let diagnostic =
-                only(&[("log.md", "# Log\n\n## May 22, 2026\n\n* **Update**\n")]);
+            let diagnostic = only(&[("log.md", "# Log\n\n## May 22, 2026\n\n* **Update**\n")]);
             assert_eq!(diagnostic.code, "okf-reserved");
             assert!(diagnostic.message.contains("May 22, 2026"));
             assert!(diagnostic.span.is_some());
@@ -345,7 +364,10 @@ mod tests {
 
         #[test]
         fn nested_logs_are_checked_too() {
-            assert_eq!(codes(&[("decisions/log.md", "## nope\n")]), ["okf-reserved"]);
+            assert_eq!(
+                codes(&[("decisions/log.md", "## nope\n")]),
+                ["okf-reserved"]
+            );
         }
 
         /// Only level-2 headings are date headings; a title is not.

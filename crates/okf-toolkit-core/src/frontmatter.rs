@@ -10,6 +10,9 @@ use crate::span::Span;
 use crate::trust::{Actor, Status, TrustTier};
 use crate::value::Node;
 
+/// The `type` value that makes a concept an Attested Computation (§10.1).
+pub const ATTESTED_COMPUTATION: &str = "Attested Computation";
+
 /// `generated: { by, at }` (§5.2).
 #[derive(Debug, Clone)]
 pub struct Generated<'a> {
@@ -183,6 +186,38 @@ impl Frontmatter {
     pub fn is_stale_on(&self, today: Date) -> bool {
         self.stale_after()
             .is_some_and(|stale_after| today >= stale_after)
+    }
+
+    /// Whether this concept is an Attested Computation (§10.1).
+    pub fn is_attested_computation(&self) -> bool {
+        self.concept_type() == Some(ATTESTED_COMPUTATION)
+    }
+
+    /// `runtime`, required for an Attested Computation (§10.2).
+    pub fn runtime(&self) -> Option<&str> {
+        self.string("runtime")
+    }
+
+    /// Every path-valued field, paired with the span to blame (§6.2).
+    ///
+    /// `sources[].resource` is excluded: §5.1 allows it to be a scope
+    /// descriptor rather than a path, so it cannot be checked as one.
+    pub fn path_fields(&self) -> Vec<(&str, Span)> {
+        let mut paths = Vec::new();
+        if let Some(node) = self.entries.get("computation")
+            && let Some(text) = node.as_str()
+        {
+            paths.push((text, node.span));
+        }
+        for key in ["executor", "attester"] {
+            if let Some(node) = self.entries.get(key)
+                && let Some(resource) = node.as_mapping().and_then(|map| map.get("resource"))
+                && let Some(text) = resource.as_str()
+            {
+                paths.push((text, resource.span));
+            }
+        }
+        paths
     }
 
     /// Every actor string in the concept, with the span to blame for each.
@@ -419,6 +454,55 @@ mod tests {
         assert!(
             frontmatter("generated: { at: 2026-01-01T00:00:00Z }\n")
                 .actors()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn identifies_attested_computations_and_their_runtime() {
+        let fm = frontmatter("type: Attested Computation\nruntime: bigquery\n");
+        assert!(fm.is_attested_computation());
+        assert_eq!(fm.runtime(), Some("bigquery"));
+
+        let other = frontmatter("type: Metric\n");
+        assert!(!other.is_attested_computation());
+        assert_eq!(other.runtime(), None);
+    }
+
+    #[test]
+    fn collects_path_valued_fields() {
+        let fm = frontmatter(
+            "computation: references/computations/revenue.sql\n\
+             executor:\n  resource: references/skills/run-on-bq.md\n  \
+             receipt: [job_id]\nattester:\n  resource: references/attesters/revenue.py\n",
+        );
+        let paths: Vec<_> = fm.path_fields().into_iter().map(|(path, _)| path).collect();
+        assert_eq!(
+            paths,
+            [
+                "references/computations/revenue.sql",
+                "references/skills/run-on-bq.md",
+                "references/attesters/revenue.py",
+            ]
+        );
+    }
+
+    #[test]
+    fn path_fields_skips_absent_and_malformed_shapes() {
+        assert!(frontmatter("type: X\n").path_fields().is_empty());
+        assert!(
+            frontmatter("computation: [a]\nexecutor: plain\n")
+                .path_fields()
+                .is_empty()
+        );
+        assert!(
+            frontmatter("executor:\n  receipt: [job_id]\n")
+                .path_fields()
+                .is_empty()
+        );
+        assert!(
+            frontmatter("attester:\n  resource: [nested]\n")
+                .path_fields()
                 .is_empty()
         );
     }

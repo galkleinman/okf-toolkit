@@ -66,7 +66,7 @@ worst defect a validator can ship, so that test is the guard against it.
 ## GitHub Action
 
 ```yaml
-- uses: galkleinman/okf-toolkit@v1
+- uses: galkleinman/okf-toolkit@v0
   with:
     path: knowledge
 ```
@@ -75,7 +75,7 @@ It downloads a prebuilt static binary (no Rust toolchain, no Docker build) and
 annotates findings inline on the pull request diff. Full inputs:
 
 ```yaml
-- uses: galkleinman/okf-toolkit@v1
+- uses: galkleinman/okf-toolkit@v0
   with:
     path: knowledge        # bundle directory
     command: lint          # `validate` (default) or `lint`

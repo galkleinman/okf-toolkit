@@ -70,7 +70,7 @@ workflow from the Actions tab.
 3. Run the same workflow with `release`. It publishes all four crates to
    crates.io, tags the commit, creates the GitHub release with the changelog as
    its body, builds the binaries for five targets, attaches them to the release,
-   and moves the floating `v1` tag.
+   and moves the floating `v0` tag.
 
 All four crates share one version. They are developed as a unit, and a consumer
 installing `okft` gets all of them, so independent versions would only create
@@ -114,7 +114,7 @@ first release is done by hand once and then never again.
    nothing for `release` to do, so it would skip and never create the tag.
    `bootstrap` tags the version already in `Cargo.toml`, creates the GitHub
    release with the generated notes, attaches the binaries, and moves the
-   floating `v1` tag.
+   floating `v0` tag.
 
 Every release after this one uses `release-pr` then `release`, and needs none of
 the above.

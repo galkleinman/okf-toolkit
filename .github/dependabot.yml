@@ -16,9 +16,3 @@ updates:
     groups:
       actions-minor-patch:
         update-types: [minor, patch]
-
-  # The composite action pins its own toolchain actions separately from CI.
-  - package-ecosystem: github-actions
-    directory: /action
-    schedule:
-      interval: weekly

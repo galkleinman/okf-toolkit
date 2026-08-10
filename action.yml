@@ -90,7 +90,7 @@ runs:
         # drift out of sync with what was actually released.
         version="${INPUT_VERSION}"
         if [ -z "${version}" ]; then
-          version="$(sed -n '/^\[workspace\.package\]/,/^\[/p' "${ACTION_PATH}/../Cargo.toml" \
+          version="$(sed -n '/^\[workspace\.package\]/,/^\[/p' "${ACTION_PATH}/Cargo.toml" \
                      | sed -n 's/^version *= *"\(.*\)"/\1/p' | head -n 1)"
         fi
         if [ -z "${version}" ]; then

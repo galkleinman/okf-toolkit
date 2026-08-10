@@ -3,9 +3,9 @@ name: Action
 on:
   push:
     branches: [main]
-    paths: ["action/**", ".github/workflows/action-test.yml"]
+    paths: ["action.yml", ".github/workflows/action-test.yml"]
   pull_request:
-    paths: ["action/**", ".github/workflows/action-test.yml"]
+    paths: ["action.yml", ".github/workflows/action-test.yml"]
   workflow_dispatch:
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
         run: cargo build --release --locked -p okft
 
       - name: Passes on a conformant bundle
-        uses: ./action
+        uses: ./
         with:
           path: tests/fixtures/upstream/acme_retail
           binary: target/release/okf
@@ -41,7 +41,7 @@ jobs:
       - name: Fails on a non-conformant bundle
         id: broken
         continue-on-error: true
-        uses: ./action
+        uses: ./
         with:
           path: ${{ runner.temp }}/broken
           binary: target/release/okf
@@ -69,7 +69,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Validate using the published release
-        uses: ./action
+        uses: ./
         with:
           path: tests/fixtures/upstream/ga4
           version: v0.1.0

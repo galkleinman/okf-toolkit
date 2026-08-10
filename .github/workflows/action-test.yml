@@ -54,3 +54,22 @@ jobs:
             exit 1
           fi
           echo "The action correctly failed the broken bundle."
+
+  # The `binary` input above bypasses the download, so the path real consumers
+  # take was never exercised until a release existed. This uses the action the
+  # way the README documents it, with no local build at all.
+  download:
+    name: Action downloads a released binary
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate using the published release
+        uses: ./action
+        with:
+          path: tests/fixtures/upstream/ga4
+          version: v0.1.0

@@ -23,7 +23,7 @@ In practice it changed the structure of several things:
 
 - `main.rs` is a three-line shim, so the process entry point holds no untestable
   logic.
-- The [MCP server](../architecture/okf-toolkit-mcp.md) is tested over an
+- The [MCP server](../architecture/okft-mcp.md) is tested over an
   in-memory duplex stream rather than a spawned subprocess.
 - Unreachable match arms and defensive fallbacks were deleted rather than
   excluded, because a branch nothing can reach is dead code.

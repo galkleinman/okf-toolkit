@@ -1,6 +1,6 @@
 ---
 type: CLI Command
-title: okft rules
+title: okf rules
 description: Lists every diagnostic rule with its tier, spec section, and default severity.
 tags: [command, reference]
 status: stable
@@ -11,7 +11,7 @@ stale_after: 2027-02-09
 # Synopsis
 
 ```
-okft rules [--json]
+okf rules [--json]
 ```
 
 # Behaviour
@@ -27,6 +27,6 @@ rule codes programmatically rather than parsing the table.
 # Example
 
 ```sh
-okft rules
-okft rules --json | jq -r '.[] | select(.kind == "conformance") | .code'
+okf rules
+okf rules --json | jq -r '.[] | select(.kind == "conformance") | .code'
 ```

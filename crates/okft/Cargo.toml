@@ -1,0 +1,39 @@
+[package]
+name = "okft"
+description = "CLI to validate, lint, and serve Open Knowledge Format (OKF) v0.2 bundles over MCP or a local web viewer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+
+[[bin]]
+name = "okf"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+okft-core.workspace = true
+okft-mcp.workspace = true
+okft-web.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+rmcp.workspace = true
+axum.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+okft-core.workspace = true
+serde_json.workspace = true
+insta.workspace = true
+predicates.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

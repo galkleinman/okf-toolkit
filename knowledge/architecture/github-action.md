@@ -1,7 +1,7 @@
 ---
 type: GitHub Action
 title: okf-validate-action
-description: A composite action that downloads the okft binary and validates a bundle in any repository's CI.
+description: A composite action that downloads the okf binary and validates a bundle in any repository's CI.
 tags: [architecture, ci, distribution]
 status: stable
 generated: { by: claude-code/opus-5, at: 2026-08-09T00:00:00Z }
@@ -10,7 +10,7 @@ stale_after: 2027-02-09
 
 # Responsibility
 
-Runs `okft validate` against a path in a consuming repository, in a few lines of
+Runs `okf validate` against a path in a consuming repository, in a few lines of
 workflow YAML.
 
 # Why a composite action, not Docker

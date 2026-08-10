@@ -23,14 +23,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build okft
-        run: cargo build --release --locked -p okf-toolkit
+      - name: Build okf
+        run: cargo build --release --locked -p okft
 
       - name: Passes on a conformant bundle
         uses: ./action
         with:
           path: tests/fixtures/upstream/acme_retail
-          binary: target/release/okft
+          binary: target/release/okf
 
       - name: Create a bundle with a missing `type`
         shell: bash
@@ -44,7 +44,7 @@ jobs:
         uses: ./action
         with:
           path: ${{ runner.temp }}/broken
-          binary: target/release/okft
+          binary: target/release/okf
 
       - name: Assert the previous step failed
         shell: bash

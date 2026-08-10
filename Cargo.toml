@@ -1,10 +1,10 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/okf-toolkit-core",
-    "crates/okf-toolkit-mcp",
-    "crates/okf-toolkit-web",
-    "crates/okf-toolkit",
+    "crates/okft-core",
+    "crates/okft-mcp",
+    "crates/okft-web",
+    "crates/okft",
 ]
 
 [workspace.package]
@@ -19,9 +19,9 @@ keywords = ["okf", "knowledge", "markdown", "frontmatter", "mcp"]
 categories = ["command-line-utilities", "parser-implementations"]
 
 [workspace.dependencies]
-okf-toolkit-core = { version = "0.1.0", path = "crates/okf-toolkit-core" }
-okf-toolkit-mcp = { version = "0.1.0", path = "crates/okf-toolkit-mcp" }
-okf-toolkit-web = { version = "0.1.0", path = "crates/okf-toolkit-web" }
+okft-core = { version = "0.1.0", path = "crates/okft-core" }
+okft-mcp = { version = "0.1.0", path = "crates/okft-mcp" }
+okft-web = { version = "0.1.0", path = "crates/okft-web" }
 
 axum = "0.8.9"
 clap = { version = "4.6.6", features = ["derive"] }

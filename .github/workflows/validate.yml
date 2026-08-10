@@ -14,15 +14,15 @@ jobs:
   # Dogfooding: this repository's own documentation is an OKF bundle, checked
   # by the action this repository publishes, using the binary it ships.
   validate:
-    name: okft validate ./knowledge
+    name: okf validate ./knowledge
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build okft
-        run: cargo build --release --locked -p okf-toolkit
+      - name: Build okf
+        run: cargo build --release --locked -p okft
 
       - name: Validate the bundle
         uses: ./action
@@ -30,4 +30,4 @@ jobs:
           path: knowledge
           command: lint
           strict: "true"
-          binary: target/release/okft
+          binary: target/release/okf

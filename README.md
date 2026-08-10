@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/galkleinman/okf-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/galkleinman/okf-toolkit/actions/workflows/ci.yml)
 [![Knowledge bundle](https://github.com/galkleinman/okf-toolkit/actions/workflows/validate.yml/badge.svg)](https://github.com/galkleinman/okf-toolkit/actions/workflows/validate.yml)
-[![crates.io](https://img.shields.io/crates/v/okf-toolkit.svg)](https://crates.io/crates/okf-toolkit)
+[![crates.io](https://img.shields.io/crates/v/okft.svg)](https://crates.io/crates/okft)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 A single-binary toolkit for [Google's Open Knowledge Format][spec] (OKF) v0.2:
@@ -15,23 +15,23 @@ and its CI validates that bundle using the binary it ships.
 ## Quickstart
 
 ```sh
-cargo install okf-toolkit          # installs a binary named `okft`
+cargo install okft          # installs a binary named `okf`
 
-okft validate ./knowledge          # OKF §11 conformance; exits non-zero on error
-okft lint ./knowledge --strict     # hygiene too, warnings promoted to errors
-okft rules                         # every rule, its tier, and its severity
+okf validate ./knowledge          # OKF §11 conformance; exits non-zero on error
+okf lint ./knowledge --strict     # hygiene too, warnings promoted to errors
+okf rules                         # every rule, its tier, and its severity
 ```
 
 Point a coding agent at a knowledge base:
 
 ```sh
-okft serve --mcp ./knowledge       # Model Context Protocol, on stdio
+okf serve --mcp ./knowledge       # Model Context Protocol, on stdio
 ```
 
 Browse it as a graph, with no network access required:
 
 ```sh
-okft serve --web ./knowledge       # http://127.0.0.1:7878
+okf serve --web ./knowledge       # http://127.0.0.1:7878
 ```
 
 ## Validate vs. lint: the important part
@@ -48,13 +48,13 @@ So the two tiers are separate here:
 
 | | Rules | Fails the build? |
 |---|---|---|
-| `okft validate` | `okf-parse`, `okf-type`, `okf-reserved` | Always, on any error |
-| `okft lint` | 13 advisory rules, each with a stable code | Only with `--strict` or `-D <rule>` |
+| `okf validate` | `okf-parse`, `okf-type`, `okf-reserved` | Always, on any error |
+| `okf lint` | 13 advisory rules, each with a stable code | Only with `--strict` or `-D <rule>` |
 
 ```sh
-okft validate ./bundle           # a broken link does NOT fail this
-okft lint ./bundle --strict      # …but it does fail this
-okft lint ./bundle -D broken-link   # or gate on just that one rule
+okf validate ./bundle           # a broken link does NOT fail this
+okf lint ./bundle --strict      # …but it does fail this
+okf lint ./bundle -D broken-link   # or gate on just that one rule
 ```
 
 `-A` silences a lint rule, but it **cannot** silence a conformance rule: no
@@ -98,7 +98,7 @@ annotates findings inline on the pull request diff. Full inputs:
 
 ## Serving a bundle to agents
 
-`okft serve --mcp` exposes concepts as MCP **resources** (`okf://<concept-id>`)
+`okf serve --mcp` exposes concepts as MCP **resources** (`okf://<concept-id>`)
 and as **tools**: `search`, `list`, `read`, `related`, and `trust`. Both, because
 many MCP clients never surface resources to the model without an explicit user
 action, so a resource-only server looks correct and does nothing useful.
@@ -113,7 +113,7 @@ Registering it with Claude Code:
 ```json
 {
   "mcpServers": {
-    "knowledge": { "command": "okft", "args": ["serve", "--mcp", "./knowledge"] }
+    "knowledge": { "command": "okf", "args": ["serve", "--mcp", "./knowledge"] }
   }
 }
 ```
@@ -122,14 +122,15 @@ Registering it with Claude Code:
 
 | Crate | Purpose |
 |---|---|
-| [`okf-toolkit`](crates/okf-toolkit) | The `okft` binary |
-| [`okf-toolkit-core`](crates/okf-toolkit-core) | Parsing, conformance, lint, link graph. No CLI or server dependencies |
-| [`okf-toolkit-mcp`](crates/okf-toolkit-mcp) | MCP server over a bundle |
-| [`okf-toolkit-web`](crates/okf-toolkit-web) | Self-contained local graph viewer |
+| [`okft`](crates/okft) | The `okf` binary |
+| [`okft-core`](crates/okft-core) | Parsing, conformance, lint, link graph. No CLI or server dependencies |
+| [`okft-mcp`](crates/okft-mcp) | MCP server over a bundle |
+| [`okft-web`](crates/okft-web) | Self-contained local graph viewer |
 
-The binary is `okft`, not `okf`: an unrelated crate already installs a binary by
-that name, and colliding on `PATH` would be worse than a longer command. See
-[the decision log](knowledge/decisions/binary-naming.md).
+The crate is `okft`; the command it installs is `okf`. Be aware that the
+unrelated [`okf` crate](https://crates.io/crates/okf) also installs a binary
+called `okf`, so if you install both, whichever came last wins on your `PATH`.
+See [the decision log](knowledge/decisions/binary-naming.md).
 
 ## Where this sits in the ecosystem
 

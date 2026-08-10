@@ -1,36 +1,57 @@
 ---
 type: Decision
-title: The binary is okft and the crates are namespaced
-description: The obvious names were already taken on crates.io by unrelated projects, so everything moved under okf-toolkit-*.
+title: The command is okf, the crates are okft
+description: The command keeps the obvious name; the crates carry a distinct one because the obvious crate names were already taken.
 tags: [decision, distribution, naming]
 status: stable
-generated: { by: claude-code/opus-5, at: 2026-08-09T00:00:00Z }
-stale_after: 2027-02-09
+generated: { by: claude-code/opus-5, at: 2026-08-10T00:00:00Z }
+stale_after: 2027-02-10
 ---
 
 # Decision
 
-The published crates are `okf-toolkit`, `okf-toolkit-core`, `okf-toolkit-mcp`,
-and `okf-toolkit-web`. The installed binary is `okft`.
+The published crates are `okft`, `okft-core`, `okft-mcp`, and `okft-web`. The
+installed command is **`okf`**.
+
+So `cargo install okft` gives you a binary called `okf`.
 
 # Rationale
 
-Three of the obvious names were already registered on crates.io by unrelated
-projects when this repository was started: `okf` (a separate pure-Rust OKF
-implementation), `okf-cli`, and `okf-mcp`. The `okf` crate installs a binary
-called `okf`.
+Three of the obvious crate names were already registered on crates.io by
+unrelated projects when this repository was started: `okf` (a separate pure-Rust
+OKF implementation), `okf-cli`, and `okf-mcp`. Crate names are globally unique
+and first-come, so those were simply unavailable.
 
-Naming this project's binary `okf` would therefore collide on `PATH` for anyone
-who had installed either tool, producing a shell that runs whichever was
-installed most recently. `okft` is unambiguous and still short enough to type in
-a workflow file on every run.
+Binary names are not globally unique, only unique per `PATH`. That asymmetry is
+what makes this split possible: the crates take a name that was free, and the
+command takes the name people will actually type.
 
-Taking the whole `okf-toolkit-*` namespace at once also avoids a second round of
-renaming if a future crate is added.
+`okf validate ./knowledge` is what a reader expects a tool for the Open
+Knowledge Format to be called, and it is typed in every workflow file, every
+README example, and every terminal session. Optimising that at the cost of a
+less obvious `cargo install` line is the right trade.
+
+# The collision this accepts
+
+The `okf` crate installs a binary that is also called `okf`. Anyone who installs
+both tools ends up running whichever they installed most recently, with no
+warning.
+
+This was weighed and accepted rather than overlooked. The two tools are
+alternatives rather than companions, so few people will want both at once, and
+the cost falls only on those who do. An earlier revision of this decision chose
+`okft` as the command name specifically to avoid this, and was reversed: the
+daily ergonomics of the command outweigh a collision most users never encounter.
 
 # Consequences
 
-- Documentation and the [GitHub Action](../architecture/github-action.md) must
-  say `okft`, never `okf`.
-- `cargo install okf-toolkit` installs a binary whose name does not match the
-  crate, which is worth stating explicitly in the README quickstart.
+- Documentation must be careful to distinguish the crate (`okft`) from the
+  command (`okf`); they are not interchangeable, and `cargo install okf` gets
+  somebody else's tool.
+- The README states the collision plainly rather than hiding it, so anyone who
+  does hit it can recognise what happened.
+- The repository stays named `okf-toolkit`, so the
+  [GitHub Action](../architecture/github-action.md) is still referenced as
+  `galkleinman/okf-toolkit@v1`.
+- Release archives are named `okft-<target>`, and the binary inside them is
+  `okf`; the action relies on both.

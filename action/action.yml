@@ -1,6 +1,6 @@
 name: Validate OKF bundle
 description: >-
-  Validate an Open Knowledge Format (OKF) v0.2 bundle with okft, and annotate
+  Validate an Open Knowledge Format (OKF) v0.2 bundle with okf, and annotate
   findings inline on the pull request.
 author: Gal Kleinman
 
@@ -53,14 +53,14 @@ inputs:
     default: ""
   binary:
     description: >-
-      Path to an existing okft binary. Skips the download entirely, for
+      Path to an existing okf binary. Skips the download entirely, for
       air-gapped runners or for testing the action against an unreleased build.
     required: false
     default: ""
 
 outputs:
   exit-code:
-    description: The exit code okft returned (0 clean, 1 findings, 2 usage error).
+    description: The exit code okf returned (0 clean, 1 findings, 2 usage error).
     value: ${{ steps.run.outputs.exit-code }}
 
 runs:
@@ -69,7 +69,7 @@ runs:
     # A prebuilt static binary is what keeps consuming repositories' CI fast.
     # Building from source here would cost every consumer a Rust toolchain and
     # a cold compile on every run.
-    - name: Resolve okft
+    - name: Resolve okf
       id: install
       shell: bash
       env:
@@ -104,13 +104,13 @@ runs:
             ;;
         esac
 
-        dest="${RUNNER_TEMP}/okft-${version}"
+        dest="${RUNNER_TEMP}/okf-${version}"
         mkdir -p "${dest}"
 
         if [ "${RUNNER_OS}" = "Windows" ]; then
-          archive="okf-toolkit-${target}.zip"
+          archive="okft-${target}.zip"
         else
-          archive="okf-toolkit-${target}.tar.gz"
+          archive="okft-${target}.tar.gz"
         fi
         url="https://github.com/galkleinman/okf-toolkit/releases/download/v${version}/${archive}"
 
@@ -123,19 +123,19 @@ runs:
           tar -xzf "${archive}"
         fi
 
-        binary="$(find "${dest}" -name 'okft' -o -name 'okft.exe' | head -n 1)"
+        binary="$(find "${dest}" -name 'okf' -o -name 'okf.exe' | head -n 1)"
         if [ -z "${binary}" ]; then
-          echo "::error::okft binary not found in ${archive}" >&2
+          echo "::error::okf binary not found in ${archive}" >&2
           exit 1
         fi
         chmod +x "${binary}"
         echo "binary=${binary}" >> "${GITHUB_OUTPUT}"
 
-    - name: Run okft
+    - name: Run okf
       id: run
       shell: bash
       env:
-        OKFT: ${{ steps.install.outputs.binary }}
+        OKF: ${{ steps.install.outputs.binary }}
         INPUT_PATH: ${{ inputs.path }}
         INPUT_COMMAND: ${{ inputs.command }}
         INPUT_STRICT: ${{ inputs.strict }}
@@ -160,8 +160,8 @@ runs:
           args+=("--today" "${INPUT_TODAY}")
         fi
 
-        echo "okft ${args[*]}"
-        "${OKFT}" "${args[@]}"
+        echo "okf ${args[*]}"
+        "${OKF}" "${args[@]}"
         code=$?
         echo "exit-code=${code}" >> "${GITHUB_OUTPUT}"
         exit "${code}"

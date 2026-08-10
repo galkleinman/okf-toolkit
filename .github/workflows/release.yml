@@ -41,7 +41,7 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: Build
-        run: cargo build --release --locked -p okf-toolkit --target ${{ matrix.target }}
+        run: cargo build --release --locked -p okft --target ${{ matrix.target }}
 
       - name: Package
         shell: bash
@@ -49,24 +49,24 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
-          staging="okf-toolkit-${TARGET}"
+          staging="okft-${TARGET}"
           mkdir -p "${staging}"
           cp README.md LICENSE "${staging}/"
 
           if [ "${RUNNER_OS}" = "Windows" ]; then
-            cp "target/${TARGET}/release/okft.exe" "${staging}/"
+            cp "target/${TARGET}/release/okf.exe" "${staging}/"
             7z a "${staging}.zip" "${staging}"
           else
-            cp "target/${TARGET}/release/okft" "${staging}/"
+            cp "target/${TARGET}/release/okf" "${staging}/"
             tar -czf "${staging}.tar.gz" "${staging}"
           fi
 
       - uses: actions/upload-artifact@v7
         with:
-          name: okf-toolkit-${{ matrix.target }}
+          name: okft-${{ matrix.target }}
           path: |
-            okf-toolkit-*.tar.gz
-            okf-toolkit-*.zip
+            okft-*.tar.gz
+            okft-*.zip
           if-no-files-found: error
 
   # The action downloads binaries from the release, so the release must exist
@@ -126,7 +126,7 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: |
           set -euo pipefail
-          for crate in okf-toolkit-core okf-toolkit-mcp okf-toolkit-web okf-toolkit; do
+          for crate in okft-core okft-mcp okft-web okft; do
             echo "::group::publishing ${crate}"
             cargo publish -p "${crate}" --locked
             echo "::endgroup::"

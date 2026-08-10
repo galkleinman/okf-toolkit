@@ -837,16 +837,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "okf-toolkit"
+name = "okft"
 version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "axum",
  "clap",
  "insta",
- "okf-toolkit-core",
- "okf-toolkit-mcp",
- "okf-toolkit-web",
+ "okft-core",
+ "okft-mcp",
+ "okft-web",
  "predicates",
  "rmcp",
  "serde",
@@ -856,7 +856,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "okf-toolkit-core"
+name = "okft-core"
 version = "0.1.0"
 dependencies = [
  "ignore",
@@ -868,10 +868,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "okf-toolkit-mcp"
+name = "okft-mcp"
 version = "0.1.0"
 dependencies = [
- "okf-toolkit-core",
+ "okft-core",
  "rmcp",
  "serde",
  "serde_json",
@@ -879,12 +879,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "okf-toolkit-web"
+name = "okft-web"
 version = "0.1.0"
 dependencies = [
  "axum",
  "http-body-util",
- "okf-toolkit-core",
+ "okft-core",
  "rust-embed",
  "serde",
  "serde_json",

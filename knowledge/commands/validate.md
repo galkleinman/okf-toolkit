@@ -1,6 +1,6 @@
 ---
 type: CLI Command
-title: okft validate
+title: okf validate
 description: Checks a bundle against the three OKF v0.2 conformance rules and exits non-zero on any error.
 tags: [command, validation, ci]
 status: stable
@@ -11,7 +11,7 @@ stale_after: 2027-02-09
 # Synopsis
 
 ```
-okft validate [BUNDLE] [--format human|json|github|sarif] [--strict]
+okf validate [BUNDLE] [--format human|json|github|sarif] [--strict]
               [-D RULE] [-A RULE] [--today YYYY-MM-DD]
 ```
 
@@ -24,14 +24,14 @@ Reports only the three conformance rules described in
 error was reported, `2` if the run could not happen at all, and `0` otherwise.
 
 A broken cross-link does not fail this command. That is deliberate, not an
-oversight; use [okft lint](lint.md) with `--strict` if you want to gate on links.
+oversight; use [okf lint](lint.md) with `--strict` if you want to gate on links.
 
 # Examples
 
 ```sh
-okft validate ./knowledge
-okft validate ./knowledge --format github     # inline PR annotations
-okft validate ./knowledge --format sarif > results.sarif
+okf validate ./knowledge
+okf validate ./knowledge --format github     # inline PR annotations
+okf validate ./knowledge --format sarif > results.sarif
 ```
 
 # Flags

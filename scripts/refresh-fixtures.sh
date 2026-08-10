@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Re-vendors Google's OKF sample bundles into tests/fixtures/upstream/.
 #
-# These bundles are the anti-false-positive net: `okft validate` must report
+# These bundles are the anti-false-positive net: `okf validate` must report
 # zero errors on every one of them. Bump UPSTREAM_COMMIT deliberately, then
 # re-run the test suite -- a new upstream commit changing the samples is
 # exactly the signal we want to catch.

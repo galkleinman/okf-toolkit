@@ -7,9 +7,9 @@ This product includes software developed at Google LLC.
 Open Knowledge Format reference viewer
 --------------------------------------------------------------------------------
 
-crates/okf-toolkit-web/assets/viz.html
-crates/okf-toolkit-web/assets/viz.css
-crates/okf-toolkit-web/assets/viz.js
+crates/okft-web/assets/viz.html
+crates/okft-web/assets/viz.css
+crates/okft-web/assets/viz.js
 
 Derived from the OKF reference agent viewer:
 
@@ -36,7 +36,7 @@ See tests/fixtures/upstream/NOTICE for the pinned commit.
 Cytoscape.js
 --------------------------------------------------------------------------------
 
-crates/okf-toolkit-web/assets/cytoscape.min.js
+crates/okft-web/assets/cytoscape.min.js
 
 Cytoscape.js 3.28.1, https://js.cytoscape.org/
 Copyright (c) 2016-2023, The Cytoscape Consortium.
@@ -46,7 +46,7 @@ Licensed under the MIT License.
 Marked
 --------------------------------------------------------------------------------
 
-crates/okf-toolkit-web/assets/marked.min.js
+crates/okft-web/assets/marked.min.js
 
 Marked 12.0.0, https://marked.js.org/
 Copyright (c) 2018+, MarkedJS

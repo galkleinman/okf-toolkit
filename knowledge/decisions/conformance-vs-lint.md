@@ -16,7 +16,7 @@ sources:
 
 # Decision
 
-`okft validate` reports exactly three rules, and they are the only findings that
+`okf validate` reports exactly three rules, and they are the only findings that
 can ever carry error severity:
 
 | Code           | Requirement                                                  |
@@ -25,7 +25,7 @@ can ever carry error severity:
 | `okf-type`     | Every frontmatter block has a non-empty `type`.              |
 | `okf-reserved` | `index.md` and `log.md` follow their specified structure.    |
 
-Everything else, including broken links, is a lint finding. `okft lint` reports
+Everything else, including broken links, is a lint finding. `okf lint` reports
 them; `--strict` or `-D <rule>` promotes them to errors for callers who want to
 gate on them.
 

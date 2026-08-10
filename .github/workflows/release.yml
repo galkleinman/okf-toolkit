@@ -235,7 +235,8 @@ jobs:
           files: okft-${{ matrix.target }}.*
           fail_on_unmatched_files: true
 
-  # Lets consumers pin `galkleinman/okf-toolkit@v1` and keep receiving patches.
+  # Maintains the floating major-version tag (`v0` while the project is
+  # pre-1.0), so consumers can pin one ref and keep receiving patches.
   floating-tag:
     name: Move the major version tag
     needs: [release, bootstrap, binaries]

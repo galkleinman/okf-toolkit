@@ -36,7 +36,7 @@ jobs:
         run: |
           if [ ! -f action.yml ]; then
             echo "::error::action.yml must stay at the repository root, or" \
-                 "uses: galkleinman/okf-toolkit@v1 cannot resolve it" >&2
+                 "uses: galkleinman/okf-toolkit@<tag> cannot resolve it" >&2
             exit 1
           fi
           if [ -e action/action.yml ]; then

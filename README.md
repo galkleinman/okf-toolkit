@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/galkleinman/okf-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/galkleinman/okf-toolkit/actions/workflows/ci.yml)
 [![Knowledge bundle](https://github.com/galkleinman/okf-toolkit/actions/workflows/validate.yml/badge.svg)](https://github.com/galkleinman/okf-toolkit/actions/workflows/validate.yml)
+[![codecov](https://codecov.io/gh/galkleinman/okf-toolkit/branch/main/graph/badge.svg)](https://codecov.io/gh/galkleinman/okf-toolkit)
 [![crates.io](https://img.shields.io/crates/v/okft.svg)](https://crates.io/crates/okft)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
@@ -154,7 +155,10 @@ cargo llvm-cov --workspace --fail-under-lines 100        # the gate CI enforces
 ```
 
 Coverage is gated at 100% of lines and was wired up before any rule logic
-existed, so it shapes the code rather than measuring it after the fact. See
+existed, so it shapes the code rather than measuring it after the fact. The
+`cargo llvm-cov --fail-under-lines 100` step is the gate; the Codecov upload is
+reporting only and is deliberately non-fatal, so a Codecov outage cannot fail a
+build whose coverage actually passed. See
 [the coverage decision](knowledge/decisions/coverage-gate.md) for the
 `cargo-llvm-cov` monomorphisation gotcha that costs an afternoon if you hit it
 unprepared.

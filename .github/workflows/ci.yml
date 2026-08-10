@@ -66,12 +66,15 @@ jobs:
           --lcov --output-path lcov.info
           --fail-under-lines 100
       # Reporting, not the gate: the step above is what enforces 100%. Skipped
-      # when no token is configured so a fork or a fresh clone still goes green.
+      # when no token is configured so a fork or a fresh clone still goes green,
+      # and non-fatal otherwise -- a Codecov outage or an unonboarded repository
+      # must not fail a build whose coverage gate passed. Failures still surface
+      # as a warning annotation on the run.
       - uses: codecov/codecov-action@v7
         if: env.CODECOV_TOKEN != ''
         with:
           files: lcov.info
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           token: ${{ env.CODECOV_TOKEN }}
 
   docs:

@@ -27,6 +27,24 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
+      # GitHub resolves `uses: owner/repo@ref` against the repository root, and
+      # a Marketplace listing requires the metadata there too. Moving this file
+      # breaks every consumer silently: the action tests reference the action by
+      # local path, so they keep passing. This runs in Lint because Lint is a
+      # required check on every pull request.
+      - name: Action metadata stays at the repository root
+        run: |
+          if [ ! -f action.yml ]; then
+            echo "::error::action.yml must stay at the repository root, or" \
+                 "uses: galkleinman/okf-toolkit@v1 cannot resolve it" >&2
+            exit 1
+          fi
+          if [ -e action/action.yml ]; then
+            echo "::error::action/action.yml is back; the root copy is the one" \
+                 "consumers resolve, so two copies will drift" >&2
+            exit 1
+          fi
+
   test:
     name: Test (${{ matrix.os }} / ${{ matrix.rust }})
     runs-on: ${{ matrix.os }}

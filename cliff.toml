@@ -29,6 +29,12 @@ footer = ""
 trim = true
 
 [git]
+# Only semantic version tags mark a release. The floating `v1` tag points at
+# whichever commit the major line currently ships, which is usually *behind*
+# the newest release tag; without this filter git-cliff treats it as a release
+# boundary and the notes cover only the commits after it, which is how v0.1.1
+# ended up with an empty body.
+tag_pattern = "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
 conventional_commits = true
 # Anything that is not a Conventional Commit is left out rather than dumped
 # into an "Other" bucket. The history predating this convention would

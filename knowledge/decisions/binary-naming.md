@@ -49,6 +49,6 @@ the command outweigh a collision most users never encounter.
   does hit it can recognise what happened.
 - The repository stays named `okf-toolkit`, so the
   [GitHub Action](../architecture/github-action.md) is still referenced as
-  `galkleinman/okf-toolkit@v1`.
+  `galkleinman/okf-toolkit@v0`.
 - Release archives are named `okft-<target>`, and the binary inside them is
   `okf`; the action relies on both.

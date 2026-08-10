@@ -227,9 +227,12 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.release.outputs.tag || needs.bootstrap.outputs.tag || inputs.tag }}
-          files: |
-            okft-*.tar.gz
-            okft-*.zip
+          # One archive per target: .tar.gz everywhere except Windows, which
+          # produces .zip. Listing both patterns fails every job, because
+          # fail_on_unmatched_files treats the pattern that cannot match on
+          # this platform as an error. The staging directory has no extension,
+          # so it is not caught by this glob.
+          files: okft-${{ matrix.target }}.*
           fail_on_unmatched_files: true
 
   # Lets consumers pin `galkleinman/okf-toolkit@v1` and keep receiving patches.

@@ -99,3 +99,5 @@ documents the `cargo-llvm-cov` monomorphisation trap.
 Changes to behaviour usually belong in the `/knowledge` bundle as well; it is
 this project's real documentation, and CI validates it with the tool this
 repository ships.
+
+<!-- enforcement probe -->

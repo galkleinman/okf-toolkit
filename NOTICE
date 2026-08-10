@@ -1,0 +1,54 @@
+okf-toolkit
+Copyright 2026 Gal Kleinman
+
+This product includes software developed at Google LLC.
+
+--------------------------------------------------------------------------------
+Open Knowledge Format reference viewer
+--------------------------------------------------------------------------------
+
+crates/okft-web/assets/viz.html
+crates/okft-web/assets/viz.css
+crates/okft-web/assets/viz.js
+
+Derived from the OKF reference agent viewer:
+
+    https://github.com/GoogleCloudPlatform/knowledge-catalog
+    path okf/src/reference_agent/viewer/
+
+Copyright Google LLC, licensed under the Apache License 2.0.
+
+Modified: the two `<script src="https://cdn.jsdelivr.net/...">` tags in
+viz.html were replaced with inline placeholders, so the viewer embeds its
+dependencies instead of fetching them at page load.
+
+--------------------------------------------------------------------------------
+Open Knowledge Format sample bundles
+--------------------------------------------------------------------------------
+
+tests/fixtures/upstream/
+
+Vendored unmodified from the same repository, path okf/bundles/.
+Copyright Google LLC, licensed under the Apache License 2.0.
+See tests/fixtures/upstream/NOTICE for the pinned commit.
+
+--------------------------------------------------------------------------------
+Cytoscape.js
+--------------------------------------------------------------------------------
+
+crates/okft-web/assets/cytoscape.min.js
+
+Cytoscape.js 3.28.1, https://js.cytoscape.org/
+Copyright (c) 2016-2023, The Cytoscape Consortium.
+Licensed under the MIT License.
+
+--------------------------------------------------------------------------------
+Marked
+--------------------------------------------------------------------------------
+
+crates/okft-web/assets/marked.min.js
+
+Marked 12.0.0, https://marked.js.org/
+Copyright (c) 2018+, MarkedJS
+Copyright (c) 2011-2018, Christopher Jeffrey
+Licensed under the MIT License.

@@ -1,0 +1,208 @@
+name: Release
+
+# Releasing is deliberate: nothing here runs on a push. Choose the step you
+# want and run it from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Which step to run.
+        type: choice
+        default: release-pr
+        options:
+          - release-pr        # open or update the version/changelog pull request
+          - release           # publish, tag, and create the GitHub release
+          - rebuild-binaries  # re-attach binaries to an existing tag
+      tag:
+        description: Tag to rebuild binaries for, e.g. v0.1.0. Only for rebuild-binaries.
+        required: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Opens (or updates) a pull request bumping the version and rewriting
+  # CHANGELOG.md from the Conventional Commits since the last release. Nothing
+  # is published until that pull request is merged.
+  release-pr:
+    name: Release PR
+    if: inputs.command == 'release-pr'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: release-plz/action@v0.5.131
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Once the release pull request is merged, publishes the crates, tags the
+  # commit, and creates the GitHub release with the changelog as its body.
+  release:
+    name: Publish
+    # crates.io Trusted Publishing cannot create a crate that does not exist,
+    # so each crate must be published by hand once before this will succeed.
+    if: inputs.command == 'release'
+    runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.release-plz.outputs.releases_created }}
+      tag: ${{ steps.tag.outputs.tag }}
+    permissions:
+      contents: write
+      # crates.io Trusted Publishing. release-plz makes the token-exchange
+      # calls itself, so `crates-io-auth-action` must NOT also be used here.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: release-plz/action@v0.5.131
+        id: release-plz
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Only `okft` carries a tag, so there is exactly one to find.
+      - name: Resolve the released tag
+        id: tag
+        if: steps.release-plz.outputs.releases_created == 'true'
+        env:
+          RELEASES: ${{ steps.release-plz.outputs.releases }}
+        run: |
+          set -euo pipefail
+          tag="$(jq -r '[.[] | select(.package_name == "okft")][0].tag' <<<"${RELEASES}")"
+          if [ -z "${tag}" ] || [ "${tag}" = "null" ]; then
+            echo "::error::released packages contained no tag for okft" >&2
+            exit 1
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "released ${tag}"
+
+      # release-plz's per-crate changelogs are path-scoped, so `okft`'s omits
+      # fixes made in the libraries and every change under /knowledge. git-cliff
+      # is not path-scoped, so it produces notes covering the whole release.
+      - uses: taiki-e/install-action@v2
+        if: steps.release-plz.outputs.releases_created == 'true'
+        with:
+          tool: git-cliff
+
+      - name: Rewrite the release notes from the whole commit range
+        if: steps.release-plz.outputs.releases_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          git-cliff --config cliff.toml --latest --strip all > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::warning::git-cliff produced no notes for ${TAG}; leaving release-plz's body in place"
+            exit 0
+          fi
+          gh release edit "${TAG}" --notes-file release-notes.md
+          echo "release notes for ${TAG}:"
+          cat release-notes.md
+
+  # Attaches the prebuilt binaries the GitHub Action downloads. This lives in
+  # the same workflow on purpose: release-plz tags using the default
+  # GITHUB_TOKEN, and a tag pushed with that token does not trigger a
+  # tag-triggered workflow, so binaries would silently never be built.
+  binaries:
+    name: Build ${{ matrix.target }}
+    needs: release
+    if: |
+      always() && (needs.release.outputs.released == 'true'
+      || inputs.command == 'rebuild-binaries')
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.tag || inputs.tag }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --locked -p okft --target ${{ matrix.target }}
+
+      - name: Package
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          staging="okft-${TARGET}"
+          mkdir -p "${staging}"
+          cp README.md LICENSE "${staging}/"
+
+          if [ "${RUNNER_OS}" = "Windows" ]; then
+            cp "target/${TARGET}/release/okf.exe" "${staging}/"
+            7z a "${staging}.zip" "${staging}"
+          else
+            cp "target/${TARGET}/release/okf" "${staging}/"
+            tar -czf "${staging}.tar.gz" "${staging}"
+          fi
+
+      - name: Attach to the release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.release.outputs.tag || inputs.tag }}
+          files: |
+            okft-*.tar.gz
+            okft-*.zip
+          fail_on_unmatched_files: true
+
+  # Lets consumers pin `galkleinman/okf-toolkit@v1` and keep receiving patches.
+  floating-tag:
+    name: Move the major version tag
+    needs: [release, binaries]
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Update the floating tag
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          major="$(cut -d. -f1 <<<"${TAG}")"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "${major}" "${TAG}"
+          git push -f origin "${major}"

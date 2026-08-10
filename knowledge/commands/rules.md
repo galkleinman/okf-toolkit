@@ -1,0 +1,31 @@
+---
+type: CLI Command
+title: okf rules
+description: Lists every diagnostic rule with its tier, spec section, and default severity.
+tags: [command, reference]
+status: stable
+stale_after: 2027-02-09
+---
+
+# Synopsis
+
+```
+okf rules [--json]
+```
+
+# Behaviour
+
+Prints the rule registry, split into the conformance rules that always fail
+[validate](validate.md) and the advisory rules that [lint](lint.md) reports.
+Each entry carries the OKF section it derives from, so a finding can be traced
+back to the spec text that motivates it.
+
+`--json` emits the same data as an array, which is the supported way to discover
+rule codes programmatically rather than parsing the table.
+
+# Example
+
+```sh
+okf rules
+okf rules --json | jq -r '.[] | select(.kind == "conformance") | .code'
+```

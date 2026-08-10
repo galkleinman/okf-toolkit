@@ -1,0 +1,46 @@
+# Conventional Commits enforcement.
+#
+# This file is the single source of truth for the rules: CI and the local
+# commit-msg hook both run `committed` against it, so the two can never drift.
+
+style = "conventional"
+
+# Types accepted in `type(scope): description`.
+allowed_types = [
+    "feat",     # a user-visible capability
+    "fix",      # a user-visible bug fix
+    "docs",     # documentation only, including the /knowledge bundle
+    "test",     # tests only
+    "refactor", # behaviour-preserving change
+    "perf",
+    "build",    # Cargo manifests, dependencies, packaging
+    "ci",       # workflows, the action, release automation
+    "chore",    # anything with no user-visible effect
+    "revert",
+]
+
+# `okf-toolkit-core` and friends are gone; scopes name a crate or an area.
+allowed_scopes = [
+    "core",
+    "cli",
+    "mcp",
+    "web",
+    "action",
+    "knowledge",
+    "release",
+    "deps",
+]
+
+# release-plz derives the semver bump from the type, so a subject that runs on
+# tends to mean the commit is doing more than one thing.
+subject_length = 72
+line_length = 100
+
+# Conventional Commits descriptions are conventionally lowercase, and that is
+# what CONTRIBUTING.md recommends. git-cliff capitalises them for display, so
+# the changelog still reads as prose.
+subject_capitalized = false
+
+# Merge and fixup commits are mechanical and carry no meaning for the changelog.
+merge_commit = false
+ignore_author_re = "(dependabot|renovate|release-plz)"

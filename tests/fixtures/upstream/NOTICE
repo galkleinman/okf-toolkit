@@ -1,0 +1,10 @@
+The bundles in this directory are vendored, unmodified, from:
+
+    https://github.com/GoogleCloudPlatform/knowledge-catalog
+    commit 374e0bc4c644310ff56cdf9c0fe81eccdec862b0
+    path   okf/bundles/
+
+Copyright Google LLC, licensed under the Apache License 2.0. See the LICENSE
+file at the root of this repository for the full license text.
+
+Regenerate with scripts/refresh-fixtures.sh -- do not edit these files by hand.

@@ -1,0 +1,56 @@
+name: Action
+
+on:
+  push:
+    branches: [main]
+    paths: ["action/**", ".github/workflows/action-test.yml"]
+  pull_request:
+    paths: ["action/**", ".github/workflows/action-test.yml"]
+  workflow_dispatch:
+
+jobs:
+  # The action itself needs testing, not just the binary it wraps: a broken
+  # bundle must actually fail the step, or the dogfooding gate proves nothing.
+  behaviour:
+    name: Action fails on a broken bundle (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build okf
+        run: cargo build --release --locked -p okft
+
+      - name: Passes on a conformant bundle
+        uses: ./action
+        with:
+          path: tests/fixtures/upstream/acme_retail
+          binary: target/release/okf
+
+      - name: Create a bundle with a missing `type`
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/broken"
+          printf -- '---\ntitle: No type field\n---\n' > "${RUNNER_TEMP}/broken/a.md"
+
+      - name: Fails on a non-conformant bundle
+        id: broken
+        continue-on-error: true
+        uses: ./action
+        with:
+          path: ${{ runner.temp }}/broken
+          binary: target/release/okf
+
+      - name: Assert the previous step failed
+        shell: bash
+        run: |
+          if [ "${{ steps.broken.outcome }}" != "failure" ]; then
+            echo "::error::the action passed a bundle with no \`type\` field" >&2
+            exit 1
+          fi
+          echo "The action correctly failed the broken bundle."

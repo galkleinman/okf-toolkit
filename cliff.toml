@@ -1,0 +1,55 @@
+# Repository-wide release notes, generated from Conventional Commits.
+#
+# release-plz writes a per-crate CHANGELOG.md for each published crate, scoped
+# to the files inside that crate. Those are correct for crates.io but
+# individually incomplete: a fix in `okft-core` never appears in `okft`'s
+# changelog, and a `docs(knowledge)` commit appears in none of them because
+# /knowledge sits outside every crate directory.
+#
+# git-cliff is not path-scoped, so the notes it produces cover the whole
+# release. The release workflow uses it to write the GitHub release body.
+
+[changelog]
+header = """
+"""
+
+body = """
+{% if version %}## {{ version | trim_start_matches(pat="v") }}{% else %}## Unreleased{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
+{% if commit.breaking %}**breaking** {% endif %}\
+{{ commit.message | upper_first }}\
+{% endfor %}
+{% endfor %}
+"""
+
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+# Anything that is not a Conventional Commit is left out rather than dumped
+# into an "Other" bucket. The history predating this convention would
+# otherwise flood the first release.
+filter_unconventional = true
+protect_breaking_commits = true
+filter_commits = true
+topo_order = false
+sort_commits = "newest"
+
+# Kept deliberately identical to the groups in release-plz.toml, so the
+# per-crate changelogs and the release notes classify a commit the same way.
+commit_parsers = [
+    { message = "^feat", group = "Added" },
+    { message = "^fix", group = "Fixed" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Changed" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^test", group = "Testing" },
+    { message = "^build", group = "Build" },
+    { message = "^ci", skip = true },
+    { message = "^chore", skip = true },
+    { message = "^revert", group = "Reverted" },
+]

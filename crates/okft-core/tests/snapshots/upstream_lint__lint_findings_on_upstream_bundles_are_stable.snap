@@ -1,0 +1,12 @@
+---
+source: crates/okft-core/tests/upstream_lint.rs
+expression: summary
+---
+{
+  "acme_retail": {},
+  "crypto_bitcoin": {},
+  "ga4": {},
+  "stackoverflow": {
+    "unresolved-footnote": 12
+  }
+}

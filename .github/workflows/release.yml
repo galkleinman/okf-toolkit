@@ -12,6 +12,7 @@ on:
         options:
           - release-pr        # open or update the version/changelog pull request
           - release           # publish, tag, and create the GitHub release
+          - bootstrap         # first release only: tag and release an already-published version
           - rebuild-binaries  # re-attach binaries to an existing tag
       tag:
         description: Tag to rebuild binaries for, e.g. v0.1.0. Only for rebuild-binaries.
@@ -116,15 +117,62 @@ jobs:
           echo "release notes for ${TAG}:"
           cat release-notes.md
 
+  # The first release is a special case. Trusted Publishing cannot create a
+  # crate, so v0.1.0 has to reach crates.io by hand -- and once it is there,
+  # `release` finds nothing unpublished and skips, leaving no tag, no GitHub
+  # release, and no binaries. This tags and releases the version already in
+  # Cargo.toml so the first release still ends up complete.
+  bootstrap:
+    name: Bootstrap the first release
+    if: inputs.command == 'bootstrap'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Tag and release the current version
+        id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml \
+                     | sed -n 's/^version *= *"\(.*\)"/\1/p' | head -n 1)"
+          tag="v${version}"
+
+          if git rev-parse "${tag}" >/dev/null 2>&1; then
+            echo "::error::${tag} already exists; use the release or rebuild-binaries command instead" >&2
+            exit 1
+          fi
+
+          git-cliff --config cliff.toml --unreleased --tag "${tag}" --strip all > notes.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${tag}" -m "${tag}"
+          git push origin "${tag}"
+
+          gh release create "${tag}" --title "${tag}" --notes-file notes.md
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
   # Attaches the prebuilt binaries the GitHub Action downloads. This lives in
   # the same workflow on purpose: release-plz tags using the default
   # GITHUB_TOKEN, and a tag pushed with that token does not trigger a
   # tag-triggered workflow, so binaries would silently never be built.
   binaries:
     name: Build ${{ matrix.target }}
-    needs: release
+    needs: [release, bootstrap]
     if: |
       always() && (needs.release.outputs.released == 'true'
+      || needs.bootstrap.outputs.tag != ''
       || inputs.command == 'rebuild-binaries')
     runs-on: ${{ matrix.os }}
     permissions:
@@ -146,7 +194,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release.outputs.tag || inputs.tag }}
+          ref: ${{ needs.release.outputs.tag || needs.bootstrap.outputs.tag || inputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -178,7 +226,7 @@ jobs:
       - name: Attach to the release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ needs.release.outputs.tag || inputs.tag }}
+          tag_name: ${{ needs.release.outputs.tag || needs.bootstrap.outputs.tag || inputs.tag }}
           files: |
             okft-*.tar.gz
             okft-*.zip
@@ -187,8 +235,10 @@ jobs:
   # Lets consumers pin `galkleinman/okf-toolkit@v1` and keep receiving patches.
   floating-tag:
     name: Move the major version tag
-    needs: [release, binaries]
-    if: needs.release.outputs.released == 'true'
+    needs: [release, bootstrap, binaries]
+    if: |
+      always() && needs.binaries.result == 'success'
+      && (needs.release.outputs.released == 'true' || needs.bootstrap.outputs.tag != '')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -198,7 +248,7 @@ jobs:
           fetch-depth: 0
       - name: Update the floating tag
         env:
-          TAG: ${{ needs.release.outputs.tag }}
+          TAG: ${{ needs.release.outputs.tag || needs.bootstrap.outputs.tag }}
         run: |
           set -euo pipefail
           major="$(cut -d. -f1 <<<"${TAG}")"

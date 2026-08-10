@@ -83,14 +83,41 @@ tag-triggered build would silently never run.
 
 ### First publication
 
-crates.io Trusted Publishing cannot create a crate that does not exist, so
-before the first automated release:
+crates.io Trusted Publishing cannot create a crate that does not exist, so the
+first release is done by hand once and then never again.
 
-1. Publish each crate manually, in dependency order:
-   `okft-core`, `okft-mcp`, `okft-web`, `okft`.
-2. Configure Trusted Publishing on crates.io for all four, pointing at this
-   repository and the `Release` workflow.
-From then on the Release workflow handles everything.
+1. Authenticate and publish each crate in dependency order, letting each appear
+   on the index before starting the next:
+
+   ```sh
+   cargo login                      # token from https://crates.io/settings/tokens
+   cargo publish -p okft-core
+   cargo publish -p okft-mcp
+   cargo publish -p okft-web
+   cargo publish -p okft
+   ```
+
+2. Configure Trusted Publishing for each of the four crates, at
+   `https://crates.io/crates/<name>/settings`:
+
+   | Field | Value |
+   |---|---|
+   | Repository owner | `galkleinman` |
+   | Repository name | `okf-toolkit` |
+   | Workflow filename | `release.yml` |
+   | Environment | *leave empty* |
+
+   The publish job declares no GitHub environment, so setting one here makes the
+   OIDC exchange fail.
+
+3. Run the **Release** workflow with `bootstrap`. Publishing by hand leaves
+   nothing for `release` to do, so it would skip and never create the tag.
+   `bootstrap` tags the version already in `Cargo.toml`, creates the GitHub
+   release with the generated notes, attaches the binaries, and moves the
+   floating `v1` tag.
+
+Every release after this one uses `release-pr` then `release`, and needs none of
+the above.
 
 ## Standards
 

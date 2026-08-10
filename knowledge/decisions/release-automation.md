@@ -62,6 +62,9 @@ needing a personal access token purely to work around that.
   `Cargo.toml` rather than a hand-maintained file, so the version `release-plz`
   bumps is automatically the version the action downloads.
 - crates.io Trusted Publishing cannot create a crate that does not exist, so the
-  first version of each crate must be published manually once.
+  first version of each crate must be published manually once. Because that
+  leaves nothing for `release` to publish, it would skip and never create the
+  tag, so the workflow carries a `bootstrap` command that tags and releases a
+  version already on the registry.
 - Nothing releases on a push. The workflow runs only from a manual dispatch, so
   publishing is always a deliberate act rather than a side effect of merging.

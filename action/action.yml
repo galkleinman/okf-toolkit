@@ -85,7 +85,14 @@ runs:
           exit 0
         fi
 
-        version="${INPUT_VERSION:-$(cat "${ACTION_PATH}/VERSION" 2>/dev/null || echo "")}"
+        # Read from the workspace manifest rather than a hand-maintained file:
+        # release-plz bumps Cargo.toml, so the action's default version cannot
+        # drift out of sync with what was actually released.
+        version="${INPUT_VERSION}"
+        if [ -z "${version}" ]; then
+          version="$(sed -n '/^\[workspace\.package\]/,/^\[/p' "${ACTION_PATH}/../Cargo.toml" \
+                     | sed -n 's/^version *= *"\(.*\)"/\1/p' | head -n 1)"
+        fi
         if [ -z "${version}" ]; then
           echo "::error::could not determine which okf-toolkit version to install; set the \`version\` input" >&2
           exit 1

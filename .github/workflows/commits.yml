@@ -1,0 +1,55 @@
+name: Commits
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Only the commits the pull request adds are checked. The history predating
+  # this workflow is not conventional and is deliberately left alone rather
+  # than rewritten.
+  conventional:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: crate-ci/committed@v1.1.11
+        with:
+          args: --config committed.toml
+          commits: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+
+  # Squash merging is enabled on this repository, and a squash commit takes its
+  # message from the pull request title rather than from any commit. Checking
+  # only the commits would leave that path unguarded.
+  title:
+    name: Pull request title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the title against committed.toml
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          cargo install committed --locked --version 1.1.11 --quiet
+          printf '%s\n' "${PR_TITLE}" > "${RUNNER_TEMP}/pr-title.txt"
+          if ! committed --commit-file "${RUNNER_TEMP}/pr-title.txt" --config committed.toml; then
+            {
+              echo "::error title=Pull request title::\"${PR_TITLE}\" is not a Conventional Commit."
+              echo "The title becomes the commit message when this PR is squash-merged,"
+              echo "and release-plz derives the version bump and changelog from it."
+              echo "Use for example: feat(mcp): add a trust tool"
+            } >&2
+            exit 1
+          fi

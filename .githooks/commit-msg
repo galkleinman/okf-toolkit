@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Validates a commit message against Conventional Commits.
+#
+# The rules live in committed.toml, which CI uses too, so this hook and the CI
+# check can never disagree. Enable it once per clone with:
+#
+#     git config core.hooksPath .githooks
+#
+# Install the checker with: cargo install committed
+set -euo pipefail
+
+message_file="$1"
+
+if ! command -v committed >/dev/null 2>&1; then
+    cat >&2 <<'HINT'
+warning: `committed` is not installed, so the commit message was not checked.
+         Install it with `cargo install committed`; CI enforces the same rules
+         and will reject a non-conforming message there instead.
+HINT
+    exit 0
+fi
+
+if ! committed --commit-file "${message_file}" --config committed.toml; then
+    cat >&2 <<'HINT'
+
+Commit messages follow Conventional Commits, because release-plz derives the
+version bump and the changelog from them:
+
+    feat(mcp): add a trust tool
+    fix(core): treat a bare `verified` mapping as a one-element list
+    docs(knowledge): record the conventional-commits decision
+
+`feat` bumps the minor version, `fix` the patch; `!` after the type or a
+`BREAKING CHANGE:` footer bumps the major. Run `okf rules` for the project's
+own conventions, and see CONTRIBUTING.md.
+HINT
+    exit 1
+fi

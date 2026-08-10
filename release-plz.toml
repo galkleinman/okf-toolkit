@@ -1,0 +1,73 @@
+# Version bumping, changelog, and publishing, driven by Conventional Commits.
+#
+# The four crates are versioned and released together: they are developed as
+# one unit, the workspace already shares `version.workspace = true`, and a
+# consumer installing `okft` gets all of them. `version_group` keeps them in
+# lockstep, and only the top-level package owns the tag and the GitHub release
+# so there is exactly one `vX.Y.Z` per release rather than four colliding ones.
+
+[workspace]
+# Each crate keeps its own changelog next to its manifest, which is what ships
+# to crates.io. Two alternatives were tried against a probe branch and both
+# lost entries: pointing every package at one shared `changelog_path` makes the
+# packages overwrite one another's section, and `changelog_include` did not
+# aggregate the libraries into `okft`. The repository-wide release notes are
+# therefore generated separately by git-cliff (see cliff.toml), which is not
+# path-scoped and cannot drop a commit.
+changelog_update = true
+
+# The tag and release belong to `okft` alone (configured below), but the tag
+# *name* is workspace-wide: changelog release links are generated from it, and
+# the per-package default would link to `okft-core-v0.1.0`, a tag that is
+# never created.
+git_tag_name = "v{{ version }}"
+git_tag_enable = false
+git_release_enable = false
+
+# Catches an accidental breaking change to the public API that the commit
+# messages did not declare.
+semver_check = true
+
+dependencies_update = false
+publish_allow_dirty = false
+pr_labels = ["release"]
+pr_name = "release: v{{ version }}"
+
+[[package]]
+name = "okft"
+git_tag_enable = true
+git_tag_name = "v{{ version }}"
+git_release_enable = true
+git_release_name = "v{{ version }}"
+version_group = "okf-toolkit"
+
+[[package]]
+name = "okft-core"
+version_group = "okf-toolkit"
+
+[[package]]
+name = "okft-mcp"
+version_group = "okf-toolkit"
+
+[[package]]
+name = "okft-web"
+version_group = "okf-toolkit"
+
+[changelog]
+protect_breaking_commits = true
+
+# Scopes name a crate or an area, so the changelog reads by area rather than
+# repeating the crate name on every line.
+commit_parsers = [
+    { message = "^feat", group = "Added" },
+    { message = "^fix", group = "Fixed" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Changed" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^test", group = "Testing" },
+    { message = "^build", group = "Build" },
+    { message = "^ci", skip = true },
+    { message = "^chore", skip = true },
+    { message = "^revert", group = "Reverted" },
+    { body = ".*security", group = "Security" },
+]

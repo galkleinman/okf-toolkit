@@ -5,6 +5,11 @@ title: okf-toolkit knowledge log
 
 # Bundle history
 
+## 2026-08-10
+
+- **Creation**: Recorded [release-automation](decisions/release-automation.md) after adopting Conventional Commits, `release-plz` for versioning and publishing, and `git-cliff` for the release notes.
+- **Update**: Renamed the command to `okf` while the crates became `okft*`, and rewrote [binary-naming](decisions/binary-naming.md), which had argued the opposite.
+
 ## 2026-08-09
 
 - **Initialization**: Created this bundle to document okf-toolkit as an OKF bundle rather than a `docs/` folder, so the project's own CI validates it with the tool it ships.

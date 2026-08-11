@@ -15,7 +15,9 @@ gh pr create --repo galkleinman/okf-toolkit
 ```
 
 Branches are not pushed to this repository, and pull requests from branches in
-it are restricted to the maintainer. Everything below applies either way.
+it are restricted to the maintainer. The release automation's `release-plz-*`
+branches are the one exception, and the only namespace a ruleset lets anything
+but the maintainer create. Everything below applies either way.
 
 ## Commit messages
 

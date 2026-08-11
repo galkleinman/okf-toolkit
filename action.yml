@@ -1,7 +1,7 @@
 name: Validate OKF bundle
 description: >-
-  Validate an Open Knowledge Format (OKF) v0.2 bundle with okf, and annotate
-  findings inline on the pull request.
+  Validate an Open Knowledge Format (OKF) bundle with okf, and annotate findings
+  inline on the pull request.
 author: Gal Kleinman
 
 branding:
@@ -45,6 +45,13 @@ inputs:
       `sarif`.
     required: false
     default: github
+  okf-version:
+    description: >-
+      OKF specification revision to check against, `0.2` or `0.1`. Defaults to
+      the bundle's own `okf_version`, then to the newest revision. Only affects
+      `command: lint`; the conformance rules are the same in both revisions.
+    required: false
+    default: ""
   version:
     description: >-
       Release tag of okf-toolkit to download, for example `v0.1.0`. Defaults to
@@ -150,6 +157,7 @@ runs:
         INPUT_ALLOW: ${{ inputs.allow }}
         INPUT_TODAY: ${{ inputs.today }}
         INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_OKF_VERSION: ${{ inputs.okf-version }}
       run: |
         set -uo pipefail
 
@@ -165,6 +173,9 @@ runs:
         done
         if [ -n "${INPUT_TODAY}" ]; then
           args+=("--today" "${INPUT_TODAY}")
+        fi
+        if [ -n "${INPUT_OKF_VERSION}" ]; then
+          args+=("--okf-version" "${INPUT_OKF_VERSION}")
         fi
 
         echo "okf ${args[*]}"

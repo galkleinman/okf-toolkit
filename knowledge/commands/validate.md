@@ -11,7 +11,7 @@ stale_after: 2027-02-09
 
 ```
 okf validate [BUNDLE] [--format human|json|github|sarif] [--strict]
-              [-D RULE] [-A RULE] [--today YYYY-MM-DD]
+              [-D RULE] [-A RULE] [--today YYYY-MM-DD] [--okf-version 0.1|0.2]
 ```
 
 `BUNDLE` defaults to the current directory.
@@ -24,6 +24,11 @@ error was reported, `2` if the run could not happen at all, and `0` otherwise.
 
 A broken cross-link does not fail this command. That is deliberate, not an
 oversight; use [okf lint](lint.md) with `--strict` if you want to gate on links.
+
+The result does not depend on `--okf-version`: §11 states the same three
+requirements in every revision. The flag is accepted so one set of arguments
+works for both commands, and it only changes what [okf lint](lint.md) reports.
+See [the versioning decision](../decisions/okf-versions.md).
 
 # Examples
 
@@ -42,3 +47,4 @@ okf validate ./knowledge --format sarif > results.sarif
 | `-D`, `--deny`    | Promotes one rule to an error. Repeatable.                    |
 | `-A`, `--allow`   | Silences one rule. Cannot silence a conformance rule.         |
 | `--today`         | Pins the date staleness is judged against, for reproducibility.|
+| `--okf-version`   | OKF revision to check against. No effect unless linting.      |

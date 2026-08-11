@@ -31,12 +31,7 @@ fn counts(bundle_name: &str) -> BTreeMap<&'static str, usize> {
     let path = fixtures_root().join("upstream").join(bundle_name);
     let bundle = Bundle::load(&path).expect("loads");
     let mut counts = BTreeMap::new();
-    for diagnostic in lint(
-        &bundle,
-        &LintOptions {
-            today: fixed_today(),
-        },
-    ) {
+    for diagnostic in lint(&bundle, &LintOptions::new(fixed_today())) {
         *counts.entry(diagnostic.code).or_default() += 1;
     }
     counts
@@ -58,12 +53,7 @@ fn no_upstream_lint_finding_is_an_error() {
     for name in UPSTREAM_BUNDLES {
         let path = fixtures_root().join("upstream").join(name);
         let bundle = Bundle::load(&path).expect("loads");
-        for diagnostic in lint(
-            &bundle,
-            &LintOptions {
-                today: fixed_today(),
-            },
-        ) {
+        for diagnostic in lint(&bundle, &LintOptions::new(fixed_today())) {
             assert_ne!(
                 diagnostic.severity,
                 Severity::Error,

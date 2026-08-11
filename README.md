@@ -6,9 +6,10 @@
 [![crates.io](https://img.shields.io/crates/v/okft.svg)](https://crates.io/crates/okft)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-A single-binary toolkit for [Google's Open Knowledge Format][spec] (OKF) v0.2:
+A single-binary toolkit for [Google's Open Knowledge Format][spec] (OKF):
 **validate** bundles in CI, **lint** them for hygiene, and **serve** them to AI
-agents over MCP or to a browser as a graph.
+agents over MCP or to a browser as a graph. Spec v0.2 by default, with v0.1
+bundles supported explicitly.
 
 This repository documents itself as an OKF bundle in [`/knowledge`](knowledge/),
 and its CI validates that bundle using the binary it ships.
@@ -48,7 +49,7 @@ Conformance and opinion are therefore kept apart:
 | | Rules | Fails the build? |
 |---|---|---|
 | `okf validate` | `okf-parse`, `okf-type`, `okf-reserved` | Always, on any error |
-| `okf lint` | 13 advisory rules, each with a stable code | Only with `--strict` or `-D <rule>` |
+| `okf lint` | 14 advisory rules, each with a stable code | Only with `--strict` or `-D <rule>` |
 
 ```sh
 okf validate ./bundle           # a broken link does NOT fail this
@@ -62,6 +63,27 @@ configuration should be able to make a genuinely broken bundle look clean.
 All four of Google's published sample bundles validate with zero errors, and a
 test asserts that on every commit. A rule stricter than the specification is the
 worst defect a validator can ship, so that test is the guard against it.
+
+## Spec versions
+
+Runs target OKF v0.2 unless told otherwise. A bundle written against v0.1 is
+checked as v0.1, which withholds every rule about a construct v0.2 introduced —
+`sources`, `verified`, `stale_after`, Attested Computations, the actor
+conventions, and the two supersessions in §13.1:
+
+```sh
+okf lint ./legacy --okf-version 0.1   # `timestamp` and `# Citations` are fine here
+okf rules --okf-version 0.1           # exactly the rules such a run can report
+```
+
+Without the flag, a bundle that declares `okf_version: "0.1"` in its root
+`index.md` (§12) is detected and checked as v0.1 on its own. An explicit
+`--okf-version` overrides the declaration and reports the disagreement as
+`version-mismatch`.
+
+`okf validate` is unaffected: §11 states the same three conformance
+requirements in both revisions, so only lint can differ. See
+[the versioning decision](knowledge/decisions/okf-versions.md).
 
 ## GitHub Action
 
@@ -84,6 +106,7 @@ annotates findings inline on the pull request diff. Full inputs:
     allow: orphan-concept  # space-separated rule codes to silence
     today: "2026-08-09"    # pin the date staleness is judged against
     format: github         # `github`, `human`, `json`, or `sarif`
+    okf-version: "0.1"     # spec revision to lint against; defaults to the bundle's own
 ```
 
 ## Output formats

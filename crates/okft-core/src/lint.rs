@@ -9,9 +9,10 @@ use std::collections::BTreeSet;
 
 use crate::bundle::{Bundle, Entry, EntryKind};
 use crate::date::Date;
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, rule};
 use crate::document::Frontmatter;
 use crate::trust::Actor;
+use crate::version::{self, OkfVersion};
 
 /// Inputs a lint run needs from the caller.
 #[derive(Debug, Clone, Copy)]
@@ -21,11 +22,30 @@ pub struct LintOptions {
     /// Supplied rather than read from the clock so a run is reproducible: the
     /// same bundle and the same `--today` always give the same result.
     pub today: Date,
+    /// The OKF revision the bundle is judged against (§12).
+    pub version: OkfVersion,
 }
 
-/// Runs every advisory rule over a bundle.
+impl LintOptions {
+    /// Options targeting the latest revision this toolkit supports.
+    pub fn new(today: Date) -> Self {
+        Self {
+            today,
+            version: version::LATEST,
+        }
+    }
+
+    #[must_use]
+    pub fn with_version(mut self, version: OkfVersion) -> Self {
+        self.version = version;
+        self
+    }
+}
+
+/// Runs every advisory rule that applies to the targeted revision.
 pub fn lint(bundle: &Bundle, options: &LintOptions) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
+    check_declared_version(bundle, options.version, &mut diagnostics);
 
     for entry in bundle.concepts() {
         check_links(bundle, entry, &mut diagnostics);
@@ -45,7 +65,43 @@ pub fn lint(bundle: &Bundle, options: &LintOptions) -> Vec<Diagnostic> {
     }
 
     check_indexes(bundle, &mut diagnostics);
+
+    // Version gating happens once, here, rather than inside each check: the
+    // rule registry is then the single place that records which revision
+    // introduced a rule, and `okf rules --okf-version` cannot disagree with
+    // what a run actually reports.
+    diagnostics.retain(|diagnostic| {
+        rule(diagnostic.code).is_some_and(|rule| rule.applies_to(options.version))
+    });
     diagnostics
+}
+
+/// §12: the declared `okf_version` should be one this toolkit knows, and should
+/// agree with the revision the run is checking against.
+fn check_declared_version(bundle: &Bundle, version: OkfVersion, diagnostics: &mut Vec<Diagnostic>) {
+    let Some((declared, span)) = bundle.declared_okf_version() else {
+        return;
+    };
+
+    let (message, help) = match OkfVersion::parse(declared) {
+        Some(target) if target == version => return,
+        Some(_) => (
+            format!("bundle declares `okf_version: {declared}` but is being checked as {version}"),
+            "drop `--okf-version` to check the bundle against the revision it declares",
+        ),
+        None => (
+            format!("`okf_version: {declared}` is not a revision this tool supports"),
+            "checking as the newest supported revision; declare `0.1` or `0.2` (§12)",
+        ),
+    };
+
+    // §12 permits the declaration in the bundle-root `index.md` only, so that
+    // is where a declaration necessarily came from.
+    diagnostics.push(
+        Diagnostic::new("version-mismatch", "index.md", message)
+            .with_span(span)
+            .with_help(help),
+    );
 }
 
 fn check_links(bundle: &Bundle, entry: &Entry, diagnostics: &mut Vec<Diagnostic>) {
@@ -306,8 +362,12 @@ mod tests {
     }
 
     fn run(sources: &[(&str, &str)]) -> Vec<Diagnostic> {
+        run_as(sources, version::LATEST)
+    }
+
+    fn run_as(sources: &[(&str, &str)], version: OkfVersion) -> Vec<Diagnostic> {
         let bundle = Bundle::from_sources(sources.iter().copied());
-        lint(&bundle, &LintOptions { today: today() })
+        lint(&bundle, &LintOptions::new(today()).with_version(version))
     }
 
     /// Filters to one rule so each test asserts about its own rule only.
@@ -699,5 +759,140 @@ mod tests {
         let findings = run(&[("a.md", "---\n[unclosed\n---\n")]);
         assert!(findings.iter().all(|d| d.code != "missing-title"));
         assert!(findings.iter().any(|d| d.code == "orphan-concept"));
+    }
+
+    #[test]
+    fn lint_options_default_to_the_latest_revision() {
+        let options = LintOptions::new(today());
+        assert_eq!(options.version, version::LATEST);
+        assert_eq!(
+            options.with_version(OkfVersion::V0_1).version,
+            OkfVersion::V0_1
+        );
+    }
+
+    mod versions {
+        use super::*;
+        use crate::diagnostic::{RULES, RuleKind};
+
+        /// The two constructs §13.1 supersedes are the correct ones to use in a
+        /// v0.1 bundle, so reporting them there would be a false positive.
+        #[test]
+        fn v01_bundles_are_not_told_off_for_v01_constructs() {
+            let sources = [(
+                "a.md",
+                "---\ntype: X\ntitle: T\ndescription: D\ntimestamp: '2026-05-28T22:53:05+00:00'\n\
+                 ---\n\n# Citations\n\n- https://example.com\n",
+            )];
+            let codes: Vec<_> = run_as(&sources, OkfVersion::V0_1)
+                .iter()
+                .map(|d| d.code)
+                .collect();
+            assert!(!codes.contains(&"legacy-timestamp"), "{codes:?}");
+            assert!(!codes.contains(&"legacy-citations"), "{codes:?}");
+
+            let latest: Vec<_> = run(&sources).iter().map(|d| d.code).collect();
+            assert!(latest.contains(&"legacy-timestamp"));
+            assert!(latest.contains(&"legacy-citations"));
+        }
+
+        /// Every rule the registry marks as v0.2-only, exercised through a
+        /// bundle that trips all of them at once.
+        #[test]
+        fn no_v02_only_rule_fires_against_a_v01_bundle() {
+            let sources = [(
+                "a.md",
+                "---\ntype: Attested Computation\ntitle: T\ndescription: D\n\
+                 stale_after: 2020-01-01\ntimestamp: '2026-05-28T22:53:05+00:00'\n\
+                 generated: { by: nonsense, at: 2026-01-01T00:00:00Z }\n\
+                 sources:\n  - id: known\n    title: No resource\n\
+                 attester:\n  resource: attesters/gone.py\n---\n\n\
+                 # Citations\n\nClaim.[^missing]\n\n[^missing]: M\n",
+            )];
+
+            let reported: BTreeSet<&str> = run_as(&sources, OkfVersion::V0_1)
+                .iter()
+                .map(|d| d.code)
+                .collect();
+            for rule in RULES
+                .iter()
+                .filter(|r| r.since == OkfVersion::V0_2 && r.kind == RuleKind::Lint)
+            {
+                assert!(
+                    !reported.contains(rule.code),
+                    "{} fired against a v0.1 bundle",
+                    rule.code
+                );
+            }
+
+            // The same bundle read as v0.2 must trip every one of them, or the
+            // assertion above would pass for the wrong reason.
+            let latest: BTreeSet<&str> = run(&sources).iter().map(|d| d.code).collect();
+            for rule in RULES
+                .iter()
+                .filter(|r| r.since == OkfVersion::V0_2 && r.kind == RuleKind::Lint)
+            {
+                assert!(latest.contains(rule.code), "{} never fired", rule.code);
+            }
+        }
+
+        #[test]
+        fn revision_independent_rules_still_fire_for_v01() {
+            let codes: Vec<_> = run_as(
+                &[("a.md", "---\ntype: X\n---\n[gone](/nope.md)\n")],
+                OkfVersion::V0_1,
+            )
+            .iter()
+            .map(|d| d.code)
+            .collect();
+            assert!(codes.contains(&"broken-link"));
+            assert!(codes.contains(&"missing-title"));
+            assert!(codes.contains(&"missing-description"));
+            assert!(codes.contains(&"orphan-concept"));
+            assert!(codes.contains(&"missing-index"));
+        }
+
+        #[test]
+        fn a_declaration_matching_the_checked_revision_is_quiet() {
+            for (declared, version) in [("0.2", OkfVersion::V0_2), ("0.1", OkfVersion::V0_1)] {
+                let source = format!("---\nokf_version: '{declared}'\n---\n# Bundle\n");
+                let findings = run_as(&[("index.md", source.as_str())], version);
+                assert!(findings.is_empty(), "{declared}: {findings:?}");
+            }
+        }
+
+        #[test]
+        fn an_explicit_override_of_the_declaration_is_reported() {
+            let findings = run_as(
+                &[("index.md", "---\nokf_version: '0.2'\n---\n# Bundle\n")],
+                OkfVersion::V0_1,
+            );
+            assert_eq!(findings.len(), 1);
+            assert_eq!(findings[0].code, "version-mismatch");
+            assert_eq!(findings[0].path, std::path::Path::new("index.md"));
+            assert!(findings[0].message.contains("checked as 0.1"));
+            assert_eq!(findings[0].span.expect("span").start.line, 2);
+            assert!(
+                findings[0]
+                    .help
+                    .as_deref()
+                    .expect("help")
+                    .contains("--okf-version")
+            );
+        }
+
+        #[test]
+        fn an_unsupported_declaration_is_reported() {
+            let findings = run(&[("index.md", "---\nokf_version: '0.9'\n---\n# Bundle\n")]);
+            assert_eq!(findings.len(), 1);
+            assert_eq!(findings[0].code, "version-mismatch");
+            assert!(findings[0].message.contains("`okf_version: 0.9`"));
+            assert!(findings[0].help.as_deref().expect("help").contains("§12"));
+        }
+
+        #[test]
+        fn a_bundle_that_declares_nothing_is_not_asked_to() {
+            assert!(run(&[("index.md", "# Bundle\n")]).is_empty());
+        }
     }
 }

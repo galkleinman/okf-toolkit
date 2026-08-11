@@ -96,6 +96,13 @@ JSON
 
 # Blocking branch creation is what forces contributors onto forks: without
 # push access to a branch here, a pull request can only come from a fork.
+#
+# `release-plz-*` is excluded because the release-pr step opens its version and
+# changelog pull request from a branch in this repository, pushed by
+# github-actions[bot], which holds no repository role and so cannot use the
+# bypass above. Excluding the namespace is narrower than granting the Actions
+# app a blanket creation bypass, and it concedes nothing: a branch here still
+# reaches `main` only through the pull request rules below.
 read -r -d '' BRANCHES_RULESET <<JSON || true
 {
   "name": "okf-toolkit: branches",
@@ -105,7 +112,7 @@ read -r -d '' BRANCHES_RULESET <<JSON || true
     { "actor_type": "RepositoryRole", "actor_id": 5, "bypass_mode": "always" }
   ],
   "conditions": {
-    "ref_name": { "include": ["~ALL"], "exclude": [] }
+    "ref_name": { "include": ["~ALL"], "exclude": ["refs/heads/release-plz-*"] }
   },
   "rules": [{ "type": "creation" }]
 }

@@ -31,7 +31,12 @@ semver_check = true
 dependencies_update = false
 publish_allow_dirty = false
 pr_labels = ["release"]
-pr_name = "release: v{{ version }}"
+# `release` is not one of the types committed.toml allows, and this string is
+# both the pull request title and the commit message on its branch, so the
+# default would fail the two Conventional Commits gates that guard every
+# other pull request. `chore` keeps the release commit out of the changelog,
+# which is right: the changelog is what this pull request writes.
+pr_name = "chore(release): v{{ version }}"
 
 [[package]]
 name = "okft"

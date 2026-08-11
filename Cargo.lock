@@ -838,7 +838,7 @@ dependencies = [
 
 [[package]]
 name = "okft"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "assert_cmd",
  "axum",
@@ -857,7 +857,7 @@ dependencies = [
 
 [[package]]
 name = "okft-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "ignore",
  "insta",
@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "okft-mcp"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "okft-core",
  "rmcp",
@@ -880,7 +880,7 @@ dependencies = [
 
 [[package]]
 name = "okft-web"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "axum",
  "http-body-util",

@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.90"
 license = "Apache-2.0"
@@ -19,9 +19,9 @@ keywords = ["okf", "knowledge", "markdown", "frontmatter", "mcp"]
 categories = ["command-line-utilities", "parser-implementations"]
 
 [workspace.dependencies]
-okft-core = { version = "0.1.1", path = "crates/okft-core" }
-okft-mcp = { version = "0.1.1", path = "crates/okft-mcp" }
-okft-web = { version = "0.1.1", path = "crates/okft-web" }
+okft-core = { version = "0.2.0", path = "crates/okft-core" }
+okft-mcp = { version = "0.2.0", path = "crates/okft-mcp" }
+okft-web = { version = "0.2.0", path = "crates/okft-web" }
 
 axum = "0.8.9"
 clap = { version = "4.6.6", features = ["derive"] }

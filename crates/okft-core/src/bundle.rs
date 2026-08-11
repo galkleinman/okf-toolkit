@@ -141,7 +141,8 @@ impl Bundle {
         }
     }
 
-    /// Reads a bundle from disk, skipping files ignored by `.gitignore`.
+    /// Reads a bundle from disk, skipping files ignored by `.gitignore` and
+    /// the contents of dot-directories.
     ///
     /// # Errors
     ///
@@ -172,6 +173,7 @@ impl Bundle {
             .require_git(false)
             .git_global(false)
             .sort_by_file_path(Ord::cmp)
+            .filter_entry(|entry| entry.depth() == 0 || !is_tooling_directory(entry))
             .build();
 
         for result in walker {
@@ -306,6 +308,28 @@ impl Bundle {
         }
         directories
     }
+}
+
+/// Whether a walked entry is a dot-directory, whose contents belong to some
+/// tool rather than to the bundle.
+///
+/// §3.1 makes every non-reserved `.md` file in the tree a concept document,
+/// which taken literally turns `.claude/skills/*/SKILL.md` and `.github/`
+/// issue templates into concepts that fail §11 for want of a `type`. Those
+/// files are configuration that happens to live under the bundle root, so
+/// pruning them is the reading that matches what §3.1 is describing. Only the
+/// directory name is examined: a dot-*file* is left alone, since a producer
+/// who writes one has named an individual document rather than handed a
+/// subtree to a tool.
+///
+/// The bundle root is exempt from this, so that a bundle may itself live in a
+/// dot-directory such as `.okf/`.
+fn is_tooling_directory(entry: &ignore::DirEntry) -> bool {
+    entry.file_type().is_some_and(|kind| kind.is_dir())
+        && entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| name.starts_with('.'))
 }
 
 #[cfg(test)]
@@ -531,6 +555,55 @@ mod tests {
             let bundle = Bundle::load(dir.path()).expect("loads");
             assert!(bundle.contains(&id("kept.md")));
             assert!(!bundle.contains(&id("ignored/hidden.md")));
+        }
+
+        /// Real bundles keep agent and CI configuration under the bundle root;
+        /// treating it as knowledge is how `.claude/skills/*/SKILL.md` turns
+        /// into a §11 error in the wild.
+        #[test]
+        fn skips_the_contents_of_dot_directories() {
+            let dir = tempfile::tempdir().expect("tempdir");
+            write(dir.path(), "kept.md", "---\ntype: X\n---\n");
+            write(
+                dir.path(),
+                ".claude/skills/bookkeeping/SKILL.md",
+                "# Skill\n",
+            );
+            write(dir.path(), ".github/workflows/ci.yml", "on: push\n");
+            write(dir.path(), "nested/.cursor/rules/style.md", "# Rules\n");
+
+            let bundle = Bundle::load(dir.path()).expect("loads");
+            assert_eq!(bundle.len(), 1);
+            assert!(bundle.contains(&id("kept.md")));
+            assert!(!bundle.contains_path(".github/workflows/ci.yml"));
+        }
+
+        /// A dot-file is a document the producer named, not a subtree handed
+        /// to a tool, so only directories are pruned.
+        #[test]
+        fn keeps_dot_files() {
+            let dir = tempfile::tempdir().expect("tempdir");
+            write(dir.path(), ".hidden.md", "---\ntype: X\n---\n");
+
+            let bundle = Bundle::load(dir.path()).expect("loads");
+            assert!(bundle.contains(&id(".hidden.md")));
+        }
+
+        /// `.okf/` is a common bundle location, so the rule must not prune the
+        /// root out from under itself.
+        #[test]
+        fn loads_a_bundle_that_is_itself_a_dot_directory() {
+            let dir = tempfile::tempdir().expect("tempdir");
+            write(
+                dir.path(),
+                ".okf/index.md",
+                "---\nokf_version: '0.2'\n---\n",
+            );
+            write(dir.path(), ".okf/tables/orders.md", "---\ntype: X\n---\n");
+
+            let bundle = Bundle::load(dir.path().join(".okf")).expect("loads");
+            assert_eq!(bundle.len(), 2);
+            assert!(bundle.contains(&id("tables/orders.md")));
         }
 
         #[test]

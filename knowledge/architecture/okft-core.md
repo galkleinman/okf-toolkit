@@ -47,7 +47,11 @@ concept for a malformed optional field is exactly what the spec forbids.
 
 Loading honours `.gitignore` without requiring a git checkout, and deliberately
 ignores the user's global excludes, so validation results never depend on the
-machine the tool runs on.
+machine the tool runs on. It also prunes dot-directories: §3.1 makes every
+non-reserved `.md` file a concept, which taken literally turns a bundle's own
+`.claude/skills/*/SKILL.md` and `.github/` templates into concepts that fail
+§11 for want of a `type`. A dot-*file* is left alone, and the bundle root is
+exempt so that a bundle may itself live in `.okf/`.
 
 Support for older spec revisions lives entirely in the rule registry: each rule
 records the revision that introduced it, and `lint` filters on that once, after

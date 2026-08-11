@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::concept_id::ConceptId;
 use crate::document::Document;
 use crate::links::{self, BodyLinks};
+use crate::span::Span;
 
 /// Filenames with defined meaning that are never concept documents (§3.1).
 pub const RESERVED_FILENAMES: [&str; 2] = ["index.md", "log.md"];
@@ -231,6 +232,30 @@ impl Bundle {
         self.entries.get(id)
     }
 
+    /// The bundle-root `index.md`, the one file permitted to carry frontmatter
+    /// while being reserved (§8, §12).
+    pub fn root_index(&self) -> Option<&Entry> {
+        self.entries
+            .values()
+            .find(|entry| entry.kind == EntryKind::Index && entry.directory().is_empty())
+    }
+
+    /// The OKF revision the bundle declares, verbatim, with the span to blame.
+    ///
+    /// Returned unparsed: a declaration this toolkit does not recognise is a
+    /// lint finding that has to quote what was written, not something to
+    /// silently discard here.
+    pub fn declared_okf_version(&self) -> Option<(&str, Span)> {
+        let node = self
+            .root_index()?
+            .document
+            .frontmatter
+            .parsed()?
+            .entries
+            .get("okf_version")?;
+        Some((node.as_str()?, node.span))
+    }
+
     pub fn contains(&self, id: &ConceptId) -> bool {
         self.entries.contains_key(id)
     }
@@ -415,6 +440,41 @@ mod tests {
         ]);
         assert_eq!(bundle.len(), 1);
         assert!(bundle.contains(&id("kept.md")));
+    }
+
+    #[test]
+    fn reads_the_declared_okf_version_from_the_root_index() {
+        let bundle = Bundle::from_sources([
+            ("index.md", "---\nokf_version: '0.1'\n---\n# Bundle\n"),
+            ("tables/index.md", "# Tables\n"),
+        ]);
+        let (declared, span) = bundle.declared_okf_version().expect("declared");
+        assert_eq!(declared, "0.1");
+        assert_eq!(span.start.line, 2);
+        assert_eq!(bundle.root_index().expect("root index").directory(), "");
+    }
+
+    #[test]
+    fn a_bundle_that_declares_nothing_has_no_version() {
+        assert!(sample().declared_okf_version().is_none());
+        assert!(Bundle::default().declared_okf_version().is_none());
+        assert!(Bundle::default().root_index().is_none());
+    }
+
+    /// A nested `index.md` cannot speak for the bundle (§12).
+    #[test]
+    fn a_nested_declaration_is_not_the_bundles() {
+        let bundle = Bundle::from_sources([("tables/index.md", "---\nokf_version: '0.1'\n---\n")]);
+        assert!(bundle.declared_okf_version().is_none());
+    }
+
+    #[test]
+    fn a_malformed_declaration_reads_as_absent() {
+        let unparseable = Bundle::from_sources([("index.md", "---\n[unclosed\n---\n")]);
+        assert!(unparseable.declared_okf_version().is_none());
+
+        let non_string = Bundle::from_sources([("index.md", "---\nokf_version: [0.1]\n---\n")]);
+        assert!(non_string.declared_okf_version().is_none());
     }
 
     #[test]

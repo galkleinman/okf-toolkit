@@ -290,6 +290,111 @@ fn rules_lists_every_code() {
     );
 }
 
+/// A v0.1 bundle written the v0.1 way: `timestamp` and a body `# Citations`
+/// list, the two constructs §13.1 superseded.
+fn legacy() -> tempfile::TempDir {
+    bundle(&[
+        ("index.md", "# Bundle\n\n* [a](a.md)\n"),
+        (
+            "a.md",
+            "---\ntype: Metric\ntitle: A\ndescription: D\n\
+             timestamp: '2026-05-28T22:53:05+00:00'\n---\n\n# Citations\n\n- https://example.com\n",
+        ),
+    ])
+}
+
+#[test]
+fn targeting_v01_stops_reporting_superseded_constructs() {
+    let dir = legacy();
+
+    okf()
+        .args(["lint", "--strict"])
+        .arg(dir.path())
+        .assert()
+        .code(EXIT_FINDINGS)
+        .stdout(predicate::str::contains("legacy-timestamp"))
+        .stdout(predicate::str::contains("legacy-citations"));
+
+    okf()
+        .args(["lint", "--strict", "--okf-version", "0.1"])
+        .arg(dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("no findings"));
+}
+
+/// A bundle that declares its own revision needs no flag (§12).
+#[test]
+fn a_declared_okf_version_selects_the_revision() {
+    let dir = bundle(&[
+        (
+            "index.md",
+            "---\nokf_version: '0.1'\n---\n# Bundle\n\n* [a](a.md)\n",
+        ),
+        (
+            "a.md",
+            "---\ntype: Metric\ntitle: A\ndescription: D\n\
+             timestamp: '2026-05-28T22:53:05+00:00'\n---\n",
+        ),
+    ]);
+
+    okf()
+        .args(["lint", "--strict"])
+        .arg(dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("no findings"));
+}
+
+#[test]
+fn overriding_a_declared_version_is_reported() {
+    let dir = bundle(&[("index.md", "---\nokf_version: '0.2'\n---\n# Bundle\n")]);
+
+    okf()
+        .args(["lint", "--okf-version", "0.1"])
+        .arg(dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("version-mismatch"))
+        .stdout(predicate::str::contains("checked as 0.1"));
+}
+
+/// Conformance is identical in both revisions, so the flag must not change it.
+#[test]
+fn validate_behaves_the_same_whichever_revision_is_requested() {
+    let dir = bundle(&[("a.md", "---\ntitle: No type\n---\n")]);
+    for version in ["0.1", "0.2"] {
+        okf()
+            .args(["validate", "--okf-version", version])
+            .arg(dir.path())
+            .assert()
+            .code(EXIT_FINDINGS)
+            .stdout(predicate::str::contains("okf-type"));
+    }
+}
+
+#[test]
+fn an_unsupported_okf_version_is_a_usage_error() {
+    let dir = healthy();
+    okf()
+        .args(["lint", "--okf-version", "0.9"])
+        .arg(dir.path())
+        .assert()
+        .code(EXIT_USAGE)
+        .stderr(predicate::str::contains("unknown OKF version `0.9`"));
+}
+
+#[test]
+fn rules_can_be_listed_for_an_older_revision() {
+    okf()
+        .args(["rules", "--okf-version", "0.1"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("okf-type"))
+        .stdout(predicate::str::contains("Rules that apply to OKF v0.1"))
+        .stdout(predicate::str::contains("legacy-timestamp").not());
+}
+
 #[test]
 fn help_and_version_exit_zero() {
     okf()

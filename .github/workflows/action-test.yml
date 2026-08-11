@@ -32,6 +32,25 @@ jobs:
           path: tests/fixtures/upstream/acme_retail
           binary: target/release/okf
 
+      # Guards the `okf-version` input specifically: this bundle is written the
+      # v0.1 way, so a strict lint only passes if the input reached the binary.
+      - name: Create a v0.1 bundle
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/legacy"
+          printf -- '# Bundle\n\n* [a](a.md)\n' > "${RUNNER_TEMP}/legacy/index.md"
+          printf -- '---\ntype: Metric\ntitle: A\ndescription: D\ntimestamp: %s\n---\n\n# Citations\n\n- https://example.com\n' \
+            "'2026-05-28T22:53:05+00:00'" > "${RUNNER_TEMP}/legacy/a.md"
+
+      - name: Passes a v0.1 bundle when told to target v0.1
+        uses: ./
+        with:
+          path: ${{ runner.temp }}/legacy
+          command: lint
+          strict: "true"
+          okf-version: "0.1"
+          binary: target/release/okf
+
       - name: Create a bundle with a missing `type`
         shell: bash
         run: |

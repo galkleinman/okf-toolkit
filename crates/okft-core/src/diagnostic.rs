@@ -11,6 +11,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::span::Span;
+use crate::version::OkfVersion;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Severity {
@@ -53,6 +54,19 @@ pub struct Rule {
     pub description: &'static str,
     /// The spec section the rule derives from, for error messages.
     pub spec_section: &'static str,
+    /// The earliest OKF revision the rule says anything about (§12).
+    ///
+    /// A rule cannot predate the construct it is about. `legacy-timestamp` is
+    /// [`OkfVersion::V0_2`] because `timestamp` only became legacy when v0.2
+    /// superseded it (§13.1); against a v0.1 bundle it is the field to use.
+    pub since: OkfVersion,
+}
+
+impl Rule {
+    /// Whether the rule applies to a bundle targeting `version`.
+    pub fn applies_to(&self, version: OkfVersion) -> bool {
+        version >= self.since
+    }
 }
 
 /// Every rule this crate can emit.
@@ -67,6 +81,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Error,
         description: "concept documents must contain a parseable YAML frontmatter block",
         spec_section: "§11.1",
+        since: OkfVersion::V0_1,
     },
     Rule {
         code: "okf-type",
@@ -74,6 +89,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Error,
         description: "every frontmatter block must contain a non-empty `type` field",
         spec_section: "§11.2",
+        since: OkfVersion::V0_1,
     },
     Rule {
         code: "okf-reserved",
@@ -81,6 +97,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Error,
         description: "`index.md` and `log.md` must follow their specified structure",
         spec_section: "§11.3",
+        since: OkfVersion::V0_1,
     },
     Rule {
         code: "broken-link",
@@ -88,6 +105,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Warning,
         description: "a markdown link points at a concept that does not exist in the bundle",
         spec_section: "§6.1",
+        since: OkfVersion::V0_1,
     },
     Rule {
         code: "missing-description",
@@ -95,6 +113,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Warning,
         description: "concepts should carry a one-line `description`",
         spec_section: "§4.1",
+        since: OkfVersion::V0_1,
     },
     Rule {
         code: "missing-title",
@@ -102,6 +121,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Info,
         description: "concepts should carry a human-readable `title`",
         spec_section: "§4.1",
+        since: OkfVersion::V0_1,
     },
     Rule {
         code: "stale-concept",
@@ -109,6 +129,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Warning,
         description: "the concept is on or past its `stale_after` date",
         spec_section: "§5.5",
+        since: OkfVersion::V0_2,
     },
     Rule {
         code: "legacy-timestamp",
@@ -116,6 +137,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Warning,
         description: "`timestamp` is superseded by `generated.at`",
         spec_section: "§13.1",
+        since: OkfVersion::V0_2,
     },
     Rule {
         code: "legacy-citations",
@@ -123,6 +145,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Warning,
         description: "a body `# Citations` list is superseded by frontmatter `sources`",
         spec_section: "§13.1",
+        since: OkfVersion::V0_2,
     },
     Rule {
         code: "unknown-actor",
@@ -131,6 +154,7 @@ pub const RULES: &[Rule] = &[
         description: "actor fields should use `<producer>/<version>`, `human:<id>`, or \
                       `process:<id>`",
         spec_section: "§7",
+        since: OkfVersion::V0_2,
     },
     Rule {
         code: "unresolved-footnote",
@@ -138,6 +162,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Warning,
         description: "a footnote label does not match any `sources[].id`",
         spec_section: "§5.1",
+        since: OkfVersion::V0_2,
     },
     Rule {
         code: "computation-missing-runtime",
@@ -145,6 +170,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Warning,
         description: "an Attested Computation must declare a `runtime`",
         spec_section: "§10.2",
+        since: OkfVersion::V0_2,
     },
     Rule {
         code: "source-missing-resource",
@@ -152,6 +178,18 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Warning,
         description: "every `sources` entry requires a `resource`",
         spec_section: "§5.1",
+        since: OkfVersion::V0_2,
+    },
+    Rule {
+        code: "version-mismatch",
+        kind: RuleKind::Lint,
+        default_severity: Severity::Warning,
+        description: "the declared `okf_version` is unsupported, or is not the revision being \
+                      checked",
+        spec_section: "§12",
+        // The declaration is how a bundle names its revision, so the rule has to
+        // be readable from whichever revision the run targets.
+        since: OkfVersion::V0_1,
     },
     Rule {
         code: "orphan-concept",
@@ -159,6 +197,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Info,
         description: "no other concept links to this one",
         spec_section: "§6.1",
+        since: OkfVersion::V0_1,
     },
     Rule {
         code: "missing-index",
@@ -166,6 +205,7 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Info,
         description: "a directory of concepts has no `index.md`",
         spec_section: "§8",
+        since: OkfVersion::V0_1,
     },
     Rule {
         code: "unreachable-path",
@@ -173,12 +213,20 @@ pub const RULES: &[Rule] = &[
         default_severity: Severity::Info,
         description: "a path-valued field points outside the bundle or at a missing file",
         spec_section: "§6.2",
+        // The fields it resolves -- `computation`, `executor`, `attester` -- are
+        // all v0.2 additions (§13.2).
+        since: OkfVersion::V0_2,
     },
 ];
 
 /// Looks up a rule by code.
 pub fn rule(code: &str) -> Option<&'static Rule> {
     RULES.iter().find(|rule| rule.code == code)
+}
+
+/// The rules that apply to a bundle targeting `version`, in registry order.
+pub fn rules_for(version: OkfVersion) -> impl Iterator<Item = &'static Rule> {
+    RULES.iter().filter(move |rule| rule.applies_to(version))
 }
 
 /// A single finding against a bundle.
@@ -294,6 +342,37 @@ mod tests {
                 rule.code
             );
         }
+    }
+
+    /// §11's three requirements are worded identically in both revisions, so
+    /// conformance must not depend on which one a run targets.
+    #[test]
+    fn every_conformance_rule_applies_to_every_revision() {
+        for rule in RULES.iter().filter(|r| r.kind == RuleKind::Conformance) {
+            assert_eq!(rule.since, OkfVersion::V0_1, "{}", rule.code);
+        }
+    }
+
+    #[test]
+    fn a_rule_applies_from_the_revision_that_introduced_it() {
+        let legacy = rule("legacy-timestamp").expect("registered");
+        assert!(!legacy.applies_to(OkfVersion::V0_1));
+        assert!(legacy.applies_to(OkfVersion::V0_2));
+
+        let links = rule("broken-link").expect("registered");
+        assert!(links.applies_to(OkfVersion::V0_1));
+        assert!(links.applies_to(OkfVersion::V0_2));
+    }
+
+    #[test]
+    fn the_latest_revision_sees_every_rule() {
+        assert_eq!(rules_for(crate::version::LATEST).count(), RULES.len());
+
+        let v01: Vec<_> = rules_for(OkfVersion::V0_1).map(|r| r.code).collect();
+        assert!(v01.len() < RULES.len());
+        assert!(v01.contains(&"okf-type"));
+        assert!(v01.contains(&"version-mismatch"));
+        assert!(!v01.contains(&"legacy-citations"));
     }
 
     #[test]

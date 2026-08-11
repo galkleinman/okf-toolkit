@@ -1,7 +1,8 @@
 # okft-core
 
-Parser, conformance validator, and linter for [Open Knowledge Format][spec] v0.2
-bundles. No CLI or server dependencies, so it can be embedded directly.
+Parser, conformance validator, and linter for [Open Knowledge Format][spec]
+bundles, targeting spec v0.2 with support for v0.1. No CLI or server
+dependencies, so it can be embedded directly.
 
 The important design point: OKF §11 lists exactly three conformance
 requirements and then forbids rejecting a bundle for anything else, including

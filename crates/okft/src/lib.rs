@@ -17,6 +17,7 @@ use okft_core::bundle::Bundle;
 use okft_core::date::Date;
 use okft_core::diagnostic::Severity;
 use okft_core::lint::{LintOptions, lint};
+use okft_core::version::{self, OkfVersion};
 use okft_core::{conformance, diagnostic};
 
 use crate::format::{Format, Report};
@@ -31,7 +32,7 @@ pub const EXIT_USAGE: u8 = 2;
 #[command(
     name = "okf",
     version,
-    about = "Validate, lint, and serve Open Knowledge Format (OKF) v0.2 bundles",
+    about = "Validate, lint, and serve Open Knowledge Format (OKF) bundles",
     long_about = None,
 )]
 pub struct Cli {
@@ -41,7 +42,7 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Check a bundle against the three OKF v0.2 conformance rules (§11).
+    /// Check a bundle against the three OKF conformance rules (§11).
     Validate(CheckArgs),
     /// Report bundle hygiene beyond conformance.
     Lint(CheckArgs),
@@ -50,6 +51,10 @@ enum Command {
         /// Emit JSON instead of a table.
         #[arg(long)]
         json: bool,
+
+        /// Only list the rules that apply to this OKF revision.
+        #[arg(long = "okf-version", value_name = "VERSION")]
+        okf_version: Option<OkfVersion>,
     },
     /// Serve a bundle to AI agents over MCP, or to a browser as a graph.
     Serve(ServeArgs),
@@ -102,6 +107,11 @@ struct CheckArgs {
     /// Date used for staleness checks, as `YYYY-MM-DD`. Defaults to today (UTC).
     #[arg(long, value_name = "YYYY-MM-DD")]
     today: Option<String>,
+
+    /// OKF revision to check against, `0.2` or `0.1`. Defaults to the bundle's
+    /// own `okf_version`, then to the newest revision.
+    #[arg(long = "okf-version", value_name = "VERSION")]
+    okf_version: Option<OkfVersion>,
 }
 
 /// Runs the CLI and returns the process exit code.
@@ -128,8 +138,11 @@ fn execute(command: &Command) -> ExitCode {
     match command {
         Command::Validate(args) => check(args, Mode::Validate),
         Command::Lint(args) => check(args, Mode::Lint),
-        Command::Rules { json } => {
-            print!("{}", render_rules(*json));
+        Command::Rules { json, okf_version } => {
+            print!(
+                "{}",
+                render_rules(*json, okf_version.unwrap_or(version::LATEST))
+            );
             ExitCode::SUCCESS
         }
         Command::Serve(args) => serve::run(args),
@@ -167,9 +180,15 @@ fn check(args: &CheckArgs, mode: Mode) -> ExitCode {
         }
     };
 
+    // Conformance is deliberately not version-aware: §11 states the same three
+    // requirements in both revisions, so only the advisory rules can differ.
     let mut diagnostics = conformance::validate(&bundle);
     if mode == Mode::Lint {
-        diagnostics.extend(lint(&bundle, &LintOptions { today }));
+        let version = version::resolve(
+            args.okf_version,
+            bundle.declared_okf_version().map(|(declared, _)| declared),
+        );
+        diagnostics.extend(lint(&bundle, &LintOptions { today, version }));
     }
 
     let diagnostics = overrides.apply(diagnostics);
@@ -205,10 +224,9 @@ fn current_utc_date() -> Date {
     Date::from_unix_seconds(i64::try_from(seconds).unwrap_or(0))
 }
 
-fn render_rules(json: bool) -> String {
+fn render_rules(json: bool, version: OkfVersion) -> String {
     if json {
-        let rules: Vec<_> = diagnostic::RULES
-            .iter()
+        let rules: Vec<_> = diagnostic::rules_for(version)
             .map(|rule| {
                 serde_json::json!({
                     "code": rule.code,
@@ -220,6 +238,7 @@ fn render_rules(json: bool) -> String {
                     "defaultSeverity": rule.default_severity.as_str(),
                     "description": rule.description,
                     "specSection": rule.spec_section,
+                    "since": rule.since.as_str(),
                 })
             })
             .collect();
@@ -229,29 +248,29 @@ fn render_rules(json: bool) -> String {
         );
     }
 
-    let mut out = String::new();
+    let mut out = format!("Rules that apply to OKF v{version}:\n\n");
     out.push_str("Conformance rules (§11) always fail `validate`:\n");
-    for rule in diagnostic::RULES
-        .iter()
-        .filter(|r| r.kind == diagnostic::RuleKind::Conformance)
+    for rule in
+        diagnostic::rules_for(version).filter(|r| r.kind == diagnostic::RuleKind::Conformance)
     {
         let _ = writeln!(
             out,
-            "  {:<28} {:<8} {}",
-            rule.code, rule.spec_section, rule.description
+            "  {:<28} {:<8} {:<7} {}",
+            rule.code,
+            rule.spec_section,
+            format!("v{}+", rule.since),
+            rule.description
         );
     }
     out.push_str("\nLint rules are advisory unless denied or run with --strict:\n");
-    for rule in diagnostic::RULES
-        .iter()
-        .filter(|r| r.kind == diagnostic::RuleKind::Lint)
-    {
+    for rule in diagnostic::rules_for(version).filter(|r| r.kind == diagnostic::RuleKind::Lint) {
         let _ = writeln!(
             out,
-            "  {:<28} {:<8} {:<8} {}",
+            "  {:<28} {:<8} {:<8} {:<7} {}",
             rule.code,
             rule.spec_section,
             rule.default_severity.as_str(),
+            format!("v{}+", rule.since),
             rule.description
         );
     }
@@ -367,6 +386,16 @@ mod tests {
         assert_eq!(args.deny, ["broken-link"]);
         assert_eq!(args.allow, ["orphan-concept"]);
         assert_eq!(args.today.as_deref(), Some("2026-08-09"));
+        assert!(args.okf_version.is_none());
+    }
+
+    #[test]
+    fn parses_the_okf_version_flag() {
+        let args = check_args(parse(&["okf", "lint", "--okf-version", "0.1"]).command)
+            .expect("check command");
+        assert_eq!(args.okf_version, Some(OkfVersion::V0_1));
+
+        assert!(Cli::try_parse_from(["okf", "lint", "--okf-version", "0.9"]).is_err());
     }
 
     #[test]
@@ -394,7 +423,7 @@ mod tests {
 
     #[test]
     fn renders_the_rule_table_and_json() {
-        let table = render_rules(false);
+        let table = render_rules(false, version::LATEST);
         for rule in diagnostic::RULES {
             assert!(
                 table.contains(rule.code),
@@ -403,14 +432,36 @@ mod tests {
             );
         }
         assert!(table.contains("Conformance rules"));
+        assert!(table.contains("Rules that apply to OKF v0.2"));
+        assert!(table.contains("v0.2+"));
 
         let json: serde_json::Value =
-            serde_json::from_str(&render_rules(true)).expect("valid JSON");
+            serde_json::from_str(&render_rules(true, version::LATEST)).expect("valid JSON");
         assert_eq!(
             json.as_array().expect("array").len(),
             diagnostic::RULES.len()
         );
         assert_eq!(json[0]["kind"], "conformance");
+        assert_eq!(json[0]["since"], "0.1");
+    }
+
+    #[test]
+    fn the_rule_listing_hides_rules_a_revision_never_had() {
+        let table = render_rules(false, OkfVersion::V0_1);
+        assert!(table.contains("Rules that apply to OKF v0.1"));
+        assert!(table.contains("okf-type"));
+        assert!(!table.contains("legacy-timestamp"));
+
+        let json: serde_json::Value =
+            serde_json::from_str(&render_rules(true, OkfVersion::V0_1)).expect("valid JSON");
+        let codes: Vec<&str> = json
+            .as_array()
+            .expect("array")
+            .iter()
+            .map(|rule| rule["code"].as_str().expect("code"))
+            .collect();
+        assert!(codes.contains(&"broken-link"));
+        assert!(!codes.contains(&"stale-concept"));
     }
 
     #[test]
